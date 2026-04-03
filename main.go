@@ -54,6 +54,7 @@ func main() {
 
 	var history []anthropic.MessageParam
 	reader := bufio.NewReader(os.Stdin)
+	agent.Init()
 
 	fmt.Println("Agent Loop ready (q/exit to quit)")
 	for {
