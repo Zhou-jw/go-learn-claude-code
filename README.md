@@ -9,7 +9,7 @@
 ### 1. 复制配置文件
 
 ```bash
-cp agent/example.yaml agent/config.yaml
+cp config/example.yaml config/config.yaml
 ```
 
 ### 2. 编辑 config.yaml，填入你的 API Key
@@ -22,7 +22,7 @@ anthropic:
 ### 3. 运行
 
 ```bash
-go run agent/agent_loop.go
+go build && ./glcc
 ```
 
 ---

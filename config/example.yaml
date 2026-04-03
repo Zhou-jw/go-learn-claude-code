@@ -1,7 +1,6 @@
 # Anthropic API 配置
 anthropic:
   api_key: "your-api-key-here"
-  base_url: ""  # 可选，如使用代理或自定义端点
-
+  base_url: "https://api.siliconflow.cn/"  # siliconflow
 model:
   id: "claude-sonnet-4-20250514"  # 可选，默认 claude-sonnet-4-20250514

@@ -5,40 +5,23 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"glcc/config"
 	"glcc/agent"
 )
 
-// 向上查找 config/config.yaml
-func findConfig() string {
-	dir, _ := os.Getwd()
-	for {
-		testPath := filepath.Join(dir, "config", "config.yaml")
-		if _, err := os.Stat(testPath); err == nil {
-			return testPath
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
-
 func main() {
-	configPath := findConfig()
+	configPath := config.FindConfig()
 	if configPath == "" {
 		fmt.Println("Error: could not find config/config.yaml")
 		os.Exit(1)
 	}
 
-	cfg, err := agent.LoadConfig(configPath)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		fmt.Printf("Failed to load config: %v\n", err)
 		os.Exit(1)

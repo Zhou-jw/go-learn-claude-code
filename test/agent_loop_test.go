@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -12,31 +11,13 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"glcc/agent"
+	"glcc/config"
 )
 
-func findConfig() string {
-	dir, _ := os.Getwd()
-	for {
-		testPath := filepath.Join(dir, "config", "config.yaml")
-		if _, err := os.Stat(testPath); err == nil {
-			return testPath
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
-
 func TestAgentLoop(t *testing.T) {
+	configPath := config.FindConfig()
 
-
-	configPath := findConfig()
-
-	cfg, err := agent.LoadConfig(configPath)
+	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		fmt.Printf("Failed to load config: %v\n", err)
 		fmt.Println("Please copy example.yaml to config.yaml and fill in your API key")
