@@ -28,6 +28,7 @@ func TestRunSubagent(t *testing.T) {
 		client,
 		cfg.Model.ID,
 		`你是一个子代理，请计算 123 + 456 等于多少，只返回结果数字`,
+		0,
 	)
 
 	// 3. 输出结果，看是否正常

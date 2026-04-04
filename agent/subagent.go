@@ -8,11 +8,14 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func RunSubagent(client anthropic.Client, modelID string, prompt string) string {
+func RunSubagent(client anthropic.Client, modelID string, prompt string, parentRound int) string {
 	var sub_messages = []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(prompt))}
 	if modelID == "" {
 		return "modelID not specified"
 	}
+
+	round := 0
+	SaveMessages(&sub_messages, parentRound+round, "subagent")
 
 	var resp *anthropic.Message
 	var err error
@@ -44,6 +47,8 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string) string 
 		sub_messages = append(sub_messages, anthropic.NewAssistantMessage(assistantContent...))
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
+			round++
+			SaveMessages(&sub_messages, parentRound+round, "subagent")
 			break
 		}
 
@@ -58,7 +63,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string) string 
 				if len(output) > 50000 {
 					output = output[:50000]
 				}
-				
+
 				if len(output) > 200 {
 					fmt.Println(output[:200] + "...")
 				} else {

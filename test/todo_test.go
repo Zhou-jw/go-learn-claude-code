@@ -9,8 +9,6 @@ import (
 
 // 初始化一次，避免重复创建
 func TestMain(m *testing.M) {
-	agent.Init()
-	
 	exitCode := m.Run()
 
 	os.Exit(exitCode)

@@ -13,6 +13,8 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		modelID = string(anthropic.ModelClaudeSonnet4_20250514)
 	}
 
+	round := 0
+	SaveMessages(messages, round, "parent")
 	for {
 		resp, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
 			Model:     anthropic.Model(modelID),
@@ -21,7 +23,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				{Text: system},
 			},
 			Messages: *messages,
-			Tools:    CHILD_TOOLS,
+			Tools:    PARENT_TOOLS,
 		})
 		if err != nil {
 			fmt.Printf("API Error: %v\n", err)
@@ -41,6 +43,8 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		*messages = append(*messages, anthropic.NewAssistantMessage(assistantContent...))
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
+			round++
+			SaveMessages(messages, round, "parent")
 			return
 		}
 
@@ -55,7 +59,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				if toolUse.Name == "task" {
 					prompt := input["prompt"].(string)
 					fmt.Println("> task: ", prompt[:80])
-					output = RunSubagent(client, modelID, prompt)
+					output = RunSubagent(client, modelID, prompt, round)
 
 				} else {
 					output = DispatchTool(toolUse.Name, input)

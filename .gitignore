@@ -1,3 +1,4 @@
 config/config.yaml
 __debug*
 glcc
+agent_logs/

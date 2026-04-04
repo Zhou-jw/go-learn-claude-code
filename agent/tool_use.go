@@ -23,7 +23,7 @@ var dangerousCommands = []string{
 var WORKDIR string
 var TODOMGR *TodoManager
 
-func Init() {
+func init() {
 	WORKDIR, _ = os.Getwd()
 	TODOMGR = NewTodoManager()
 }
