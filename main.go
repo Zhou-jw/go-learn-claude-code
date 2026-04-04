@@ -49,9 +49,6 @@ func main() {
 	}
 	client := anthropic.NewClient(opts...)
 
-	cwd, _ := os.Getwd()
-	system := fmt.Sprintf("You are a coding agent at %s. Use bash to solve tasks. Act, don't explain.", cwd)
-
 	var history []anthropic.MessageParam
 	reader := bufio.NewReader(os.Stdin)
 	agent.Init()
@@ -69,7 +66,7 @@ func main() {
 		}
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))
-		agent.AgentLoop(&history, client, cfg.Model.ID, system)
+		agent.AgentLoop(&history, client, cfg.Model.ID, agent.Sys_prompt)
 
 		if len(history) > 0 {
 			lastMsg := history[len(history)-1]

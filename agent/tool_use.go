@@ -223,7 +223,7 @@ var TOOL_HANDLERS = map[string]ToolHandler{
 	"todo":       handleTodo,
 }
 
-var TOOLS = []anthropic.ToolUnionParam{
+var CHILD_TOOLS = []anthropic.ToolUnionParam{
 	anthropic.ToolUnionParamOfTool(
 		anthropic.ToolInputSchemaParam{
 			Type: "object",
@@ -326,6 +326,22 @@ var TOOLS = []anthropic.ToolUnionParam{
 		"todo", // 工具名称
 	),
 }
+
+var TASK_TOOL = 
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"prompt": map[string]any{
+					"type":        "string",
+				},
+			},
+			Required: []string{"prompt"},
+		},
+		"task", // 工具名称
+	)
+
+var PARENT_TOOLS = append(CHILD_TOOLS, TASK_TOOL)
 
 func DispatchTool(name string, input map[string]any) string {
 	handler, ok := TOOL_HANDLERS[name]
