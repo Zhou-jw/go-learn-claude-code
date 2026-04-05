@@ -24,7 +24,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 			Model:     anthropic.Model(modelID),
 			MaxTokens: 8000,
 			System: []anthropic.TextBlockParam{
-				{Text: Subagent_sys_prompt},
+				{Text: Subagent_sys_prompt()},
 			},
 			Messages: sub_messages,
 			Tools:    CHILD_TOOLS,

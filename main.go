@@ -65,7 +65,7 @@ func main() {
 		}
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))
-		agent.AgentLoop(&history, client, cfg.Model.ID, agent.Sys_prompt)
+		agent.AgentLoop(&history, client, cfg.Model.ID, agent.Sys_prompt())
 
 		if len(history) > 0 {
 			lastMsg := history[len(history)-1]

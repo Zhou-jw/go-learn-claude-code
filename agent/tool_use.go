@@ -196,15 +196,15 @@ func handleTodo(input map[string]any) string {
 		if !ok {
 			return "Error: invalid todo item format"
 		}
-		
+
 		id, _ := todo_map["id"].(string)
 		text, _ := todo_map["text"].(string)
 		status_str, _ := todo_map["status"].(string)
 		status := TodoStatus(status_str)
-		
+
 		todos = append(todos, TodoItem{
-			ID: id, 
-			Text: text,
+			ID:     id,
+			Text:   text,
 			Status: status,
 		})
 	}
@@ -221,6 +221,7 @@ var TOOL_HANDLERS = map[string]ToolHandler{
 	"write_file": handleWriteFile,
 	"edit_file":  handleEditFile,
 	"todo":       handleTodo,
+	"load_skill": SKILL_LOADER.GetContent,
 }
 
 var CHILD_TOOLS = []anthropic.ToolUnionParam{
@@ -325,21 +326,33 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 		},
 		"todo", // 工具名称
 	),
-}
-
-var TASK_TOOL = 
 	anthropic.ToolUnionParamOfTool(
 		anthropic.ToolInputSchemaParam{
 			Type: "object",
 			Properties: map[string]any{
-				"prompt": map[string]any{
+				"name": map[string]any{
 					"type":        "string",
+					"description": "Name of the skill to load",
 				},
 			},
-			Required: []string{"prompt"},
+			Required: []string{"name"},
 		},
-		"task", // 工具名称
-	)
+		"load_skill", // 工具名称
+	),
+}
+
+var TASK_TOOL = anthropic.ToolUnionParamOfTool(
+	anthropic.ToolInputSchemaParam{
+		Type: "object",
+		Properties: map[string]any{
+			"prompt": map[string]any{
+				"type": "string",
+			},
+		},
+		Required: []string{"prompt"},
+	},
+	"task", // 工具名称
+)
 
 var PARENT_TOOLS = append(CHILD_TOOLS, TASK_TOOL)
 

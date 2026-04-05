@@ -25,6 +25,11 @@ anthropic:
 go build && ./glcc
 ```
 
+### 4.测试
+```bash
+cd test
+go test -v -run Test # 运行全部测试，go test采用前缀匹配，如果只想运行某文件内的，只要输入对应前缀就好
+```
 ---
 
 ## 配置说明
