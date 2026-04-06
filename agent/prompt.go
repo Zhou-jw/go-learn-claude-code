@@ -20,9 +20,10 @@ func initAll() {
 
 	// 主提示词
 	sysPrompt = fmt.Sprintf(`You are a coding agent at %s.
-Use load_skill to access specialized knowledge before tackling unfamiliar topics.
-Skills available:
-%s`, cwd, SKILL_LOADER.GetDescriptions())
+		Use load_skill to access specialized knowledge before tackling unfamiliar topics.
+		Skills available:
+		%s`, cwd, SKILL_LOADER.GetDescriptions(),
+	)
 
 	// 子提示词
 	subagentSysPrompt = fmt.Sprintf(
