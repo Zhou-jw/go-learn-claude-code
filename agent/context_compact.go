@@ -41,39 +41,96 @@ func Persist_large_output(tool_use_id string, output string) string {
 		return output
 	}
 	stored_path := filepath.Join(TOOL_RESULTS_DIR, tool_use_id+"txt")
-	
-	if _, err := os.Stat(stored_path); os.IsNotExist(err){
+
+	if _, err := os.Stat(stored_path); os.IsNotExist(err) {
 		err = os.WriteFile(stored_path, []byte(output), 0644)
 		if err != nil {
 			return fmt.Sprintf("Failed to write: %v", err)
 		}
 	}
-	
+
 	preview := output
 	if len(output) > PREVIEW_CHARS {
 		preview = output[:PREVIEW_CHARS] + "..."
 	}
-	
+
 	rel_path, err := filepath.Rel(WORKDIR, stored_path)
 	if err != nil {
 		rel_path = stored_path
 	}
-	
+
 	return fmt.Sprintf("Output saved to %s. Preview: %s", rel_path, preview)
 
 }
 
-func Micro_compact(messages []anthropic.MessageParam) {
-	var tool_results []anthropic.ContentBlockUnion
-	for i, msg := range messages {
-		if msg.Role == "user" && len(msg.Content) > 0 {
-			for j, block := range msg.Content {
-				switch block.(type) {
-				case anthropic.ToolUseBlock:
-					tool := block.(anthropic.ToolUseBlock)
-				}
+func MicroCompact(messages *[]anthropic.MessageParam) {
+	totalToolResults := 0
+
+	// 统计所有 tool_result
+	for msgidx := range *messages {
+		msg := &(*messages)[msgidx]
+		if msg.Role != "user" {
+			continue
+		}
+		for blkidx := range msg.Content {
+			block := &msg.Content[blkidx]
+			// 安全判断：只统计 ToolResultBlock
+			if is_tool_result(block) {
+				totalToolResults++
 			}
 		}
-
 	}
+
+	if totalToolResults <= KEEP_RECENT_TOOL_RESULTS {
+		return
+	}
+
+	needCompact := totalToolResults - KEEP_RECENT_TOOL_RESULTS
+	compacted := 0
+
+	// 正序遍历，压缩最早的
+	for msgIdx := range *messages {
+		msg := &(*messages)[msgIdx]
+		if msg.Role != "user" {
+			continue
+		}
+
+		for blockIdx := range msg.Content {
+			block := &msg.Content[blockIdx]
+
+			// 安全获取 ToolResult
+			tr, ok := getToolResult(block)
+			if !ok {
+				continue
+			}
+			if len(tr.Content) <= 120 {
+				continue
+			}
+
+			// 原地压缩
+			msg.Content[blockIdx] = anthropic.NewToolResultBlock(
+				tr.ToolUseID,
+				"[Earlier tool result compacted. Re-run the tool if you need full detail.]",
+				false,
+			)
+
+			compacted++
+			if compacted >= needCompact {
+				return
+			}
+		}
+	}
+}
+
+// 安全判断是否为 ToolResultBlock
+func is_tool_result(block *anthropic.ContentBlockParamUnion) bool {
+	return block != nil && block.OfToolResult != nil
+}
+
+// 安全获取 ToolResultBlock
+func getToolResult(block *anthropic.ContentBlockParamUnion) (anthropic.ToolResultBlockParam, bool) {
+	if !is_tool_result(block) {
+		return anthropic.ToolResultBlockParam{}, false
+	}
+	return *block.OfToolResult, true
 }
