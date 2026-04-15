@@ -222,6 +222,7 @@ var TOOL_HANDLERS = map[string]ToolHandler{
 	"edit_file":  handleEditFile,
 	"todo":       handleTodo,
 	"load_skill": SKILL_LOADER.GetContent,
+	"compact":    func(map[string]any) (string){return "Manual compression requested."},
 }
 
 var CHILD_TOOLS = []anthropic.ToolUnionParam{
@@ -339,6 +340,20 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 		},
 		"load_skill", // 工具名称
 	),
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"focus": map[string]any{
+					"type":        "string",
+					"description": "What to preserve in the summary",
+				},
+			},
+			Required: []string{"name"},
+		},
+		"compact", // 工具名称
+	),
+
 }
 
 var TASK_TOOL = anthropic.ToolUnionParamOfTool(

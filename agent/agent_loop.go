@@ -16,6 +16,20 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 	round := 0
 	SaveMessages(messages, round, "parent")
 	for {
+		// layer1: micro_compact before each LLM call
+		MicroCompact(messages)
+
+		// layer2: auto_compact if token estimate exceeds threshold
+		if estimated_tokens(messages, &client, modelID) > COMPACT_THRESHOLD {
+			var err error
+			fmt.Println("[auto_compact triggered]")
+			messages, err = auto_compact(messages, &client, modelID)
+			if err != nil {
+				fmt.Printf("auto_compact error: %v\n", err)
+				return
+			}
+		}
+
 		resp, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
 			Model:     anthropic.Model(modelID),
 			MaxTokens: 8000,
@@ -49,6 +63,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		var toolResults []anthropic.ContentBlockParamUnion
+		var need_manual_compact = false
 		for _, block := range resp.Content {
 			if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {
 				var input map[string]any
@@ -56,14 +71,18 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 				fmt.Printf("\033[33m> %s\033[0m\n", toolUse.Name)
 				var output string
-				if toolUse.Name == "task" {
+				switch toolUse.Name {
+case "task":
 					prompt := input["prompt"].(string)
 					fmt.Println("> task: ", prompt[:80])
 					output = RunSubagent(client, modelID, prompt, round)
-
-				} else {
+				case "compact":
+					need_manual_compact = true
+					fmt.Println("Compressing...")
+				default:
 					output = DispatchTool(toolUse.Name, input)
 				}
+				
 				if len(output) > 200 {
 					fmt.Println(output[:200] + "...")
 				} else {
@@ -71,6 +90,12 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				}
 
 				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
+			}
+			
+			// layer3 :manual compact triggered by the compact tool
+			if need_manual_compact {
+				fmt.Println("[manual compact]")
+				
 			}
 		}
 
