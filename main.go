@@ -53,6 +53,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Agent Loop ready (q/exit to quit)")
+	agent.InitPersist()
 	for {
 		fmt.Print("\033[36ms01 >> \033[0m")
 		query, err := reader.ReadString('\n')

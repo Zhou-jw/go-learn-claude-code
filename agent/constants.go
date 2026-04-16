@@ -1,3 +1,3 @@
 package agent
 
-const COMPACT_THRESHOLD = 50000
+const COMPACT_THRESHOLD = 5000

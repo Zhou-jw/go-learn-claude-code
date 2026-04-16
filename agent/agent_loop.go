@@ -14,15 +14,14 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 	}
 
 	round := 0
-	SaveMessages(messages, round, "parent")
 	for {
 		// layer1: micro_compact before each LLM call
 		MicroCompact(messages)
 
 		// layer2: auto_compact if token estimate exceeds threshold
-		if estimated_tokens(messages, &client, modelID) > COMPACT_THRESHOLD {
+		if estimated_tokens(messages) > COMPACT_THRESHOLD {
 			var err error
-			fmt.Println("[auto_compact triggered]")
+			fmt.Print("\033[33m> layer2: auto_compact triggered\033[0m\n")
 			messages, err = auto_compact(messages, &client, modelID)
 			if err != nil {
 				fmt.Printf("auto_compact error: %v\n", err)
@@ -57,11 +56,12 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		*messages = append(*messages, anthropic.NewAssistantMessage(assistantContent...))
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
-			round++
-			SaveMessages(messages, round, "parent")
 			return
 		}
 
+		round++
+		SaveMessages(messages, round, "parent")
+		
 		var toolResults []anthropic.ContentBlockParamUnion
 		var need_manual_compact = false
 		for _, block := range resp.Content {
@@ -72,7 +72,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				fmt.Printf("\033[33m> %s\033[0m\n", toolUse.Name)
 				var output string
 				switch toolUse.Name {
-case "task":
+				case "task":
 					prompt := input["prompt"].(string)
 					fmt.Println("> task: ", prompt[:80])
 					output = RunSubagent(client, modelID, prompt, round)
@@ -82,7 +82,7 @@ case "task":
 				default:
 					output = DispatchTool(toolUse.Name, input)
 				}
-				
+
 				if len(output) > 200 {
 					fmt.Println(output[:200] + "...")
 				} else {
@@ -91,11 +91,15 @@ case "task":
 
 				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
 			}
-			
+
 			// layer3 :manual compact triggered by the compact tool
 			if need_manual_compact {
-				fmt.Println("[manual compact]")
-				
+				fmt.Print("\033[33m> layer3: manual compact\033[0m\n")
+				messages, err = auto_compact(messages, &client, modelID)
+				if err != nil {
+					fmt.Printf("auto_compact error: %v\n", err)
+					return
+				}
 			}
 		}
 

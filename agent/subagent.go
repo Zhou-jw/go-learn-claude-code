@@ -15,7 +15,6 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 	}
 
 	round := 0
-	SaveMessages(&sub_messages, parentRound+round, "subagent")
 
 	var resp *anthropic.Message
 	var err error
@@ -47,11 +46,11 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 		sub_messages = append(sub_messages, anthropic.NewAssistantMessage(assistantContent...))
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
-			round++
-			SaveMessages(&sub_messages, parentRound+round, "subagent")
 			break
 		}
 
+		round++
+		SaveMessages(&sub_messages, parentRound+round, "subagent")
 		var toolResults []anthropic.ContentBlockParamUnion
 		for _, block := range resp.Content {
 			if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {

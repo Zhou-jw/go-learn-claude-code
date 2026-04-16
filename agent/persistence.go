@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -12,10 +13,13 @@ import (
 var (
 	PERSIST_DIR  = "agent_logs"
 	PERSIST_FILE = ""
+	saveLock     sync.Mutex // 并发安全锁，防止多协程覆盖
 )
 
-func init() {
-	PERSIST_FILE = fmt.Sprintf("%s/messages_%s.json", PERSIST_DIR, time.Now().Format("20060102_150405"))
+func InitPersist() {
+	PERSIST_DIR = fmt.Sprintf("%s/%s", PERSIST_DIR, time.Now().Format("20060102_150405"))
+	PERSIST_FILE = fmt.Sprintf("%s/messages.jsonl", PERSIST_DIR)
+	init_context_compact()
 }
 
 type PersistedMessage struct {
@@ -30,24 +34,29 @@ type PersistedSession struct {
 }
 
 func SaveMessages(messages *[]anthropic.MessageParam, round int, msgType string) error {
-	os.MkdirAll(PERSIST_DIR, 0755)
+	saveLock.Lock()
+	defer saveLock.Unlock()
 
-	var session PersistedSession
-	if data, err := os.ReadFile(PERSIST_FILE); err == nil {
-		json.Unmarshal(data, &session)
+	// 创建目录（必须检查错误）
+	if err := os.MkdirAll(PERSIST_DIR, 0755); err != nil {
+		return err
 	}
 
-	session.Sessions = append(session.Sessions, PersistedMessage{
+	msg := PersistedMessage{
 		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
 		Round:     round,
 		Type:      msgType,
 		Messages:  *messages,
-	})
-
-	data, err := json.MarshalIndent(session, "", "  ")
+	}
+	
+	file, err := os.OpenFile(PERSIST_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
-
-	return os.WriteFile(PERSIST_FILE, data, 0644)
+	defer file.Close()
+	
+	// 格式化写入
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(msg)
 }

@@ -29,10 +29,9 @@ var (
 // 	RecentFiles  []string
 // }
 
-func init() {
-	cwd, _ := os.Getwd()
-	TOOL_RESULTS_DIR = filepath.Join(cwd, "tool_results")
-	TRANSCRIPT_DIR = filepath.Join(cwd, "transcripts")
+func init_context_compact() {
+	TOOL_RESULTS_DIR = filepath.Join(PERSIST_DIR, "tool_results")
+	TRANSCRIPT_DIR = filepath.Join(PERSIST_DIR, "transcripts")
 	err := os.MkdirAll(TOOL_RESULTS_DIR, 0755)
 	if err != nil {
 		fmt.Printf("Failed to save: %v\n", err)
@@ -245,13 +244,18 @@ func auto_compact(messages *[]anthropic.MessageParam, r *anthropic.Client, model
 	return &[]anthropic.MessageParam{msg}, nil
 }
 
-func estimated_tokens(messages *[]anthropic.MessageParam, r *anthropic.Client, modelID string) int {
-	msg_tokens_cnt, err := r.Messages.CountTokens(context.TODO(), anthropic.MessageCountTokensParams{
-		Model:    modelID,
-		Messages: *messages,
-	})
-	if err != nil {
-		panic(err.Error())
-	}
-	return int(msg_tokens_cnt.InputTokens)
+func estimated_tokens(messages *[]anthropic.MessageParam/* , r *anthropic.Client, modelID string*/) int {
+	// msg_tokens_cnt, err := r.Messages.CountTokens(context.TODO(), anthropic.MessageCountTokensParams{
+	// 	Model:    modelID,
+	// 	Messages: *messages,
+	// })
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	
+	conv_bytes, _ := json.Marshal(messages)
+	conversation := string(conv_bytes)
+	msg_tokens_cnt := len(conversation) / 4
+	
+	return int(msg_tokens_cnt)
 }
