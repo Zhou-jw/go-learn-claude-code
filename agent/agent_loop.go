@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"glcc/console"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -21,10 +21,10 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		// layer2: auto_compact if token estimate exceeds threshold
 		if estimated_tokens(messages) > COMPACT_THRESHOLD {
 			var err error
-			fmt.Print("\033[33m> layer2: auto_compact triggered\033[0m\n")
+			console.Cyan("> layer2: auto_compact triggered")
 			messages, err = auto_compact(messages, &client, modelID)
 			if err != nil {
-				fmt.Printf("auto_compact error: %v\n", err)
+				console.Red("auto_compact error: %v", err)
 				return
 			}
 		}
@@ -39,7 +39,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 			Tools:    PARENT_TOOLS,
 		})
 		if err != nil {
-			fmt.Printf("API Error: %v\n", err)
+			console.Red("API Error: %v\n", err)
 			return
 		}
 
@@ -61,7 +61,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 		round++
 		SaveMessages(messages, round, "parent")
-		
+
 		var toolResults []anthropic.ContentBlockParamUnion
 		var need_manual_compact = false
 		for _, block := range resp.Content {
@@ -69,24 +69,24 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				var input map[string]any
 				json.Unmarshal(toolUse.Input, &input)
 
-				fmt.Printf("\033[33m> %s\033[0m\n", toolUse.Name)
+				console.Yellow("> %s\n", toolUse.Name)
 				var output string
 				switch toolUse.Name {
 				case "task":
 					prompt := input["prompt"].(string)
-					fmt.Println("> task: ", prompt[:80])
+					console.Info("> task: %s", prompt[:80])
 					output = RunSubagent(client, modelID, prompt, round)
 				case "compact":
 					need_manual_compact = true
-					fmt.Println("Compressing...")
+					console.Info("Compressing...")
 				default:
 					output = DispatchTool(toolUse.Name, input)
 				}
 
 				if len(output) > 200 {
-					fmt.Println(output[:200] + "...")
+					console.Info("%s", output[:200]+"...")
 				} else {
-					fmt.Println(output)
+					console.Info("%s", output)
 				}
 
 				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
@@ -94,10 +94,10 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 			// layer3 :manual compact triggered by the compact tool
 			if need_manual_compact {
-				fmt.Print("\033[33m> layer3: manual compact\033[0m\n")
+				console.Yellow("> layer3: manual compact\n")
 				messages, err = auto_compact(messages, &client, modelID)
 				if err != nil {
-					fmt.Printf("auto_compact error: %v\n", err)
+					console.Red("auto_compact error: %v\n", err)
 					return
 				}
 			}

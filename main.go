@@ -12,12 +12,13 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"glcc/config"
 	"glcc/agent"
+	"glcc/console"
 )
 
 func main() {
 	configPath := config.FindConfig()
 	if configPath == "" {
-		fmt.Println("Error: could not find config/config.yaml")
+		console.Red("Error: could not find config/config.yaml")
 		os.Exit(1)
 	}
 
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	if cfg.Anthropic.APIKey == "" || cfg.Anthropic.APIKey == "your-api-key-here" {
-		fmt.Println("Please set your API key in config.yaml")
+		console.Red("Please set your API key in config.yaml")
 		os.Exit(1)
 	}
 
@@ -37,7 +38,7 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sig
-		fmt.Println("\nExiting...")
+		console.Info("\nExiting...")
 		os.Exit(0)
 	}()
 
@@ -52,10 +53,10 @@ func main() {
 	var history []anthropic.MessageParam
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("Agent Loop ready (q/exit to quit)")
+	console.Info("Agent Loop ready (q/exit to quit)")
 	agent.InitPersist()
 	for {
-		fmt.Print("\033[36ms01 >> \033[0m")
+		console.Cyan("s01 >> ")
 		query, err := reader.ReadString('\n')
 		if err != nil {
 			break

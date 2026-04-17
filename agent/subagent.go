@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glcc/console"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -57,16 +58,16 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 				var input map[string]any
 				json.Unmarshal(toolUse.Input, &input)
 
-				fmt.Printf("\033[33m> %s\033[0m\n", toolUse.Name)
+				console.Yellow("> %s\n", toolUse.Name)
 				output := DispatchTool(toolUse.Name, input)
 				if len(output) > 50000 {
 					output = output[:50000]
 				}
 
 				if len(output) > 200 {
-					fmt.Println(output[:200] + "...")
+					console.Info("%s", output[:200] + "...")
 				} else {
-					fmt.Println(output)
+					console.Info("%s", output)
 				}
 
 				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
