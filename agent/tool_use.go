@@ -22,10 +22,12 @@ var dangerousCommands = []string{
 
 var WORKDIR string
 var TODOMGR *TodoManager
+var TASKMGR *TaskMgr
 
 func init() {
 	WORKDIR, _ = os.Getwd()
 	TODOMGR = NewTodoManager()
+	TASKMGR, _ = NewTaskMgr(WORKDIR)
 }
 
 func safePath(p string) (string, error) {
@@ -215,6 +217,50 @@ func handleTodo(input map[string]any) string {
 	return render_str
 }
 
+func handle_task_create(input map[string]any) string {
+	subject, ok := input["subject"].(string)
+	if !ok {
+		return "Error: subject must be a string"
+	}
+	description, ok := input["description"].(string)
+	if !ok {
+		return "Error: description must be a string"
+	}
+	task, err := TASKMGR.NewTask(subject, description)
+	if err != nil {
+		return "Error: " + err.Error()
+	}
+	return fmt.Sprintf("Task created: %s", task)
+}
+
+func handle_task_update(input map[string]any) string {
+	task_id, ok := input["task_id"].(int)
+	if !ok {
+		return "Error: task_id must be a string"
+	}
+	status, ok := input["status"].(TaskState)
+	if !ok {
+		return "Error: status must be a string"
+	}
+	add_blocked_by, ok := input["addBlockedBy"].([]int)
+	if !ok {
+		return "Error: addBlockedBy must be a list of task IDs"
+	}
+	remove_blocked_by, ok := input["removeBlockedBy"].([]int)
+	if !ok {
+		return "Error: removeBlockedBy must be a list of task IDs"
+	}
+	err := TASKMGR.Update(task_id, status, add_blocked_by, remove_blocked_by)
+	if err != nil {
+		return "Error: " + err.Error()
+	}
+	return fmt.Sprintf("Task updated: %s", task_id)
+}
+
+func handle_task_list(input map[string]any) string {
+	
+}
+
 var TOOL_HANDLERS = map[string]ToolHandler{
 	"bash":       handleBash,
 	"read_file":  handleReadFile,
@@ -223,6 +269,7 @@ var TOOL_HANDLERS = map[string]ToolHandler{
 	"todo":       handleTodo,
 	"load_skill": SKILL_LOADER.GetContent,
 	"compact":    func(map[string]any) (string){return "Manual compression requested."},
+	"task_create": handle_task_create,
 }
 
 var CHILD_TOOLS = []anthropic.ToolUnionParam{
