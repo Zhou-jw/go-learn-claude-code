@@ -16,7 +16,7 @@ var (
 	saveLock     sync.Mutex // 并发安全锁，防止多协程覆盖
 )
 
-func InitPersist() {
+func init_persist() {
 	PERSIST_DIR = fmt.Sprintf("%s/%s", PERSIST_DIR, time.Now().Format("20060102_150405"))
 	PERSIST_FILE = fmt.Sprintf("%s/messages.jsonl", PERSIST_DIR)
 	init_context_compact()

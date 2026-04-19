@@ -54,7 +54,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	console.Info("Agent Loop ready (q/exit to quit)")
-	agent.InitPersist()
+	agent.InitAll()
 	for {
 		console.Cyan("s01 >> ")
 		query, err := reader.ReadString('\n')

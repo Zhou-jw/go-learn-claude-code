@@ -20,12 +20,10 @@ var dangerousCommands = []string{
 	"> /dev/",
 }
 
-var WORKDIR string
 var TODOMGR *TodoManager
 var TASKMGR *TaskMgr
 
-func init() {
-	WORKDIR, _ = os.Getwd()
+func init_tool_use() {
 	TODOMGR = NewTodoManager()
 	TASKMGR, _ = NewTaskMgr(filepath.Join(WORKDIR, "tasks"))
 }
