@@ -27,7 +27,7 @@ var TASKMGR *TaskMgr
 func init() {
 	WORKDIR, _ = os.Getwd()
 	TODOMGR = NewTodoManager()
-	TASKMGR, _ = NewTaskMgr(WORKDIR)
+	TASKMGR, _ = NewTaskMgr(filepath.Join(WORKDIR, "tasks"))
 }
 
 func safePath(p string) (string, error) {
@@ -242,31 +242,49 @@ func handle_task_create(input map[string]any) string {
 	if err != nil {
 		return "Error: " + err.Error()
 	}
-	return fmt.Sprintf("Task created: %d", task.ID)
+	return fmt.Sprintf("Task created: %d\n", task.ID)
 }
 
 func handle_task_update(input map[string]any) string {
-	task_id, ok := input["task_id"].(int)
+	task_id_f64, ok := input["task_id"].(float64)
 	if !ok {
-		return "Error: task_id must be a string"
+		return "Error: task_id must be a number"
 	}
-	status, ok := input["status"].(TaskState)
+	task_id := int(task_id_f64)
+
+	status_str, ok := input["status"].(string)
 	if !ok {
 		return "Error: status must be a string"
 	}
-	add_blocked_by, ok := input["addBlockedBy"].([]int)
-	if !ok {
-		return "Error: addBlockedBy must be a list of task IDs"
+	status := TaskState(status_str)
+
+	var add_blocked_by []int
+	if raw, ok := input["addBlockedBy"]; ok && raw != nil {
+		if arr, ok := raw.([]any); ok {
+			for _, v := range arr {
+				if f, ok := v.(float64); ok {
+					add_blocked_by = append(add_blocked_by, int(f))
+				}
+			}
+		}
 	}
-	remove_blocked_by, ok := input["removeBlockedBy"].([]int)
-	if !ok {
-		return "Error: removeBlockedBy must be a list of task IDs"
+
+	var remove_blocked_by []int
+	if raw, ok := input["removeBlockedBy"]; ok && raw != nil {
+		if arr, ok := raw.([]any); ok {
+			for _, v := range arr {
+				if f, ok := v.(float64); ok {
+					remove_blocked_by = append(remove_blocked_by, int(f))
+				}
+			}
+		}
 	}
+
 	err := TASKMGR.Update(task_id, status, add_blocked_by, remove_blocked_by)
 	if err != nil {
-		return "Error: " + err.Error()
+		return fmt.Sprintf("Error: %s\n", err.Error())
 	}
-	return fmt.Sprintf("Task updated: %d", task_id)
+	return fmt.Sprintf("Task updated: %d\n", task_id)
 }
 
 func handle_task_list(input map[string]any) string {
@@ -274,10 +292,11 @@ func handle_task_list(input map[string]any) string {
 }
 
 func handle_task_get(input map[string]any) string {
-	task_id, ok := input["task_id"].(int)
+	task_id_f64, ok := input["task_id"].(float64)
 	if !ok {
 		return "Error: task_id must be a string"
 	}
+	task_id := int(task_id_f64)
 	return TASKMGR.Get(task_id)
 }
 
@@ -419,11 +438,71 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 					"description": "What to preserve in the summary",
 				},
 			},
-			Required: []string{"name"},
 		},
 		"compact", // 工具名称
 	),
-}
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"subject": map[string]any{
+					"type": "string",
+				},
+				"description": map[string]any{
+					"type": "string",
+				},
+			},
+			Required: []string{""},
+		},
+		"task_create",
+	),
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"task_id": map[string]any{
+					"type": "integer",
+				},
+				"status": map[string]any{
+					"type": "string",
+				},
+				"addBlockedBy": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "integer",
+					},
+				},
+				"removeBlockedBy": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "integer",
+					},
+				},
+			},
+			Required: []string{"task_id", "status"},
+		},
+		"task_update",
+	),
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type:       "object",
+			Properties: map[string]any{},
+			Required:   []string{},
+		},
+		"task_list",
+	),
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"task_id": map[string]any{
+					"type": "integer",
+				},
+			},
+			Required: []string{"task_id"},
+		},
+		"task_get",
+	)}
 
 var TASK_TOOL = anthropic.ToolUnionParamOfTool(
 	anthropic.ToolInputSchemaParam{

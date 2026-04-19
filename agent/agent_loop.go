@@ -74,7 +74,8 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				switch toolUse.Name {
 				case "task":
 					prompt := input["prompt"].(string)
-					console.Info("> task: %s", prompt[:80])
+					
+					console.InfoOfLen(80, "> task: %s", prompt)
 					output = RunSubagent(client, modelID, prompt, round)
 				case "compact":
 					need_manual_compact = true
@@ -83,11 +84,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 					output = DispatchTool(toolUse.Name, input)
 				}
 
-				if len(output) > 200 {
-					console.Info("%s", output[:200]+"...")
-				} else {
-					console.Info("%s", output)
-				}
+				console.InfoOfLen(200, "%s", output)
 
 				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
 			}

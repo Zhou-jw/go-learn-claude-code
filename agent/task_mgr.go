@@ -237,7 +237,7 @@ func (m *TaskMgr) ListAll() string {
 		line := m.Get(id)
 		lines = append(lines, line)
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(lines, "")
 }
 
 func (m *TaskMgr) Get(taskid int) string {
@@ -258,6 +258,6 @@ func (m *TaskMgr) Get(taskid int) string {
 		}
 		blocked = fmt.Sprintf(" (blocked by: %s)", strings.Join(strs, ", "))
 	}
-	line := fmt.Sprintf("%s #%d: %s %s", mark, taskid, task.Subject, blocked)
+	line := fmt.Sprintf("%s #%d: %s %s\n", mark, taskid, task.Subject, blocked)
 	return line
 }

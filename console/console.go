@@ -17,6 +17,15 @@ func Info(format string, a ...any) {
 	fmt.Printf(format, a...)
 }
 
+func InfoOfLen(n int, format string, a ...any) {
+	output := fmt.Sprintf(format, a...)
+	if len(output) > n {
+		fmt.Println(output[:n] + "...\n")
+		return
+	}
+	fmt.Printf(format, a...)
+}
+
 // Yellow 黄色打印
 func Yellow(format string, a ...any) {
 	if Enable {
@@ -47,7 +56,7 @@ func Green(format string, a ...any) {
 // Cyan 青色打印
 func Cyan(format string, a ...any) {
 	if Enable {
-		color.Cyan(format, a...)
+		fmt.Print(color.CyanString(format,a...))
 	} else {
 		fmt.Printf(format, a...)
 	}
