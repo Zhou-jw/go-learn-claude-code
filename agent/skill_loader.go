@@ -79,7 +79,6 @@ func (sl *SkillLoader) loadAll() {
 		return
 	}
 
-	// 排序（和 Python sorted 一致）
 	sort.Strings(files)
 
 	// 逐个解析
@@ -160,12 +159,7 @@ func (sl *SkillLoader) GetDescriptions() string {
 }
 
 // GetContent 获取完整技能内容
-func (sl *SkillLoader) GetContent(input map[string]any) string {
-	name, ok := input["name"].(string)
-	if !ok {
-		return "Error: name is required"
-	}
-	
+func (sl *SkillLoader) GetContent(name string) string {
 	skill, ok := sl.Skills[name]
 	if !ok {
 		available := make([]string, 0, len(sl.Skills))
@@ -176,7 +170,8 @@ func (sl *SkillLoader) GetContent(input map[string]any) string {
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("<skill name=\"%s\">\n", name))
+	
+	fmt.Fprintf(&buf, "<skill name=\"%s\">\n", name)
 	buf.WriteString(skill.Body)
 	buf.WriteString("\n</skill>")
 	return buf.String()

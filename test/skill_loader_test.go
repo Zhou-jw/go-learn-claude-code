@@ -71,7 +71,7 @@ func TestSkillLoader_GetContent(t *testing.T) {
 	loader := agent.NewSkillLoader(dir)
 
 	// 正常获取
-	content := loader.GetContent(map[string]any{"name": "pdf"})
+	content := loader.GetContent( "pdf")
 	assert.Contains(t, content, "<skill name=\"pdf\">")
 	// fmt.Println(content)
 	// first line should be "# PDF Processing Skill"
@@ -80,12 +80,12 @@ func TestSkillLoader_GetContent(t *testing.T) {
 	assert.Contains(t, content, "4. **OCR for scanned PDFs**: Use `pytesseract` if text extraction returns empty")
 
 	// 不存在的技能
-	errContent := loader.GetContent(map[string]any{"name": "not_exist"})
+	errContent := loader.GetContent( "not_exist")
 	assert.Contains(t, errContent, "Error: Unknown skill 'not_exist'")
 	// assert.Contains(t, errContent, "agent-builder, code-review, mcp-builder, pdf")
 
 	// 无 name 参数
-	errNoName := loader.GetContent(map[string]any{})
+	errNoName := loader.GetContent("")
 	assert.Equal(t, "Error: name is required", errNoName)
 }
 

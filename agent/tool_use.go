@@ -217,6 +217,18 @@ func handleTodo(input map[string]any) string {
 	return render_str
 }
 
+func handle_load_skill(input map[string]any) string {
+	name, ok := input["name"].(string)
+	if !ok {
+		return "Error: name must be a string"
+	}
+	return SKILL_LOADER.GetContent(name)
+}
+
+func handle_compact(input map[string]any) string {
+	return "Manual compression requested."
+}
+
 func handle_task_create(input map[string]any) string {
 	subject, ok := input["subject"].(string)
 	if !ok {
@@ -230,7 +242,7 @@ func handle_task_create(input map[string]any) string {
 	if err != nil {
 		return "Error: " + err.Error()
 	}
-	return fmt.Sprintf("Task created: %s", task)
+	return fmt.Sprintf("Task created: %d", task.ID)
 }
 
 func handle_task_update(input map[string]any) string {
@@ -254,22 +266,33 @@ func handle_task_update(input map[string]any) string {
 	if err != nil {
 		return "Error: " + err.Error()
 	}
-	return fmt.Sprintf("Task updated: %s", task_id)
+	return fmt.Sprintf("Task updated: %d", task_id)
 }
 
 func handle_task_list(input map[string]any) string {
-	
+	return TASKMGR.ListAll()
+}
+
+func handle_task_get(input map[string]any) string {
+	task_id, ok := input["task_id"].(int)
+	if !ok {
+		return "Error: task_id must be a string"
+	}
+	return TASKMGR.Get(task_id)
 }
 
 var TOOL_HANDLERS = map[string]ToolHandler{
-	"bash":       handleBash,
-	"read_file":  handleReadFile,
-	"write_file": handleWriteFile,
-	"edit_file":  handleEditFile,
-	"todo":       handleTodo,
-	"load_skill": SKILL_LOADER.GetContent,
-	"compact":    func(map[string]any) (string){return "Manual compression requested."},
+	"bash":        handleBash,
+	"read_file":   handleReadFile,
+	"write_file":  handleWriteFile,
+	"edit_file":   handleEditFile,
+	"todo":        handleTodo,
+	"load_skill":  handle_load_skill,
+	"compact":     handle_compact,
 	"task_create": handle_task_create,
+	"task_update": handle_task_update,
+	"task_list":   handle_task_list,
+	"task_get":    handle_task_get,
 }
 
 var CHILD_TOOLS = []anthropic.ToolUnionParam{
@@ -400,7 +423,6 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 		},
 		"compact", // 工具名称
 	),
-
 }
 
 var TASK_TOOL = anthropic.ToolUnionParamOfTool(

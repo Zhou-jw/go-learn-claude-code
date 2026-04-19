@@ -20,6 +20,12 @@ const (
 	TaskStateDone    TaskState = "done"
 )
 
+var stateMark = map[TaskState]string{
+	TaskStatePending: "[ ]",
+	TaskStateRunning: "[>]",
+	TaskStateDone:    "[x]",
+}
+
 // 校验状态是否合法（替代原来的枚举检查）
 func (s TaskState) IsValid() bool {
 	switch s {
@@ -226,30 +232,32 @@ func (m *TaskMgr) ListAll() string {
 	}
 	sort.Ints(ids)
 
-	stateMark := map[TaskState]string{
-		TaskStatePending: "[ ]",
-		TaskStateRunning: "[>]",
-		TaskStateDone:    "[x]",
-	}
-
 	var lines []string
 	for _, id := range ids {
-		task := m.tasks[id]
-		mark, ok := stateMark[task.State]
-		if !ok {
-			mark = "[?]"
-		}
-		
-		blocked := ""
-		if len(task.BlockedBy) > 0{
-			strs := make([]string, len(task.BlockedBy))
-			for i, v:=range task.BlockedBy {
-				strs[i]= strconv.Itoa(v)
-			}
-			blocked = fmt.Sprintf(" (blocked by: %s)", strings.Join(strs, ", "))
-		}
-		lines = append(lines, fmt.Sprintf("%s #%d: %s %s", mark, id, task.Subject, blocked))
-		
+		line := m.Get(id)
+		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (m *TaskMgr) Get(taskid int) string {
+	task, ok := m.tasks[taskid]
+	if !ok {
+		return "Task not found."
+	}
+	mark, ok := stateMark[task.State]
+	if !ok {
+		mark = "[?]"
+	}
+
+	blocked := ""
+	if len(task.BlockedBy) > 0 {
+		strs := make([]string, len(task.BlockedBy))
+		for i, v := range task.BlockedBy {
+			strs[i] = strconv.Itoa(v)
+		}
+		blocked = fmt.Sprintf(" (blocked by: %s)", strings.Join(strs, ", "))
+	}
+	line := fmt.Sprintf("%s #%d: %s %s", mark, taskid, task.Subject, blocked)
+	return line
 }
