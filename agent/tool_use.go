@@ -465,6 +465,7 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 				},
 				"status": map[string]any{
 					"type": "string",
+					"enum": []string{"pending", "in_progress", "done"},
 				},
 				"addBlockedBy": map[string]any{
 					"type": "array",

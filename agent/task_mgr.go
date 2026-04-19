@@ -23,7 +23,7 @@ const (
 var stateMark = map[TaskState]string{
 	TaskStatePending: "[ ]",
 	TaskStateRunning: "[>]",
-	TaskStateDone:    "[x]",
+	TaskStateDone:    "[√]",
 }
 
 // 校验状态是否合法（替代原来的枚举检查）
@@ -170,6 +170,10 @@ func (m *TaskMgr) Update(taskid int, status TaskState, add_blocked_by []int, rem
 		task.State = status
 	}
 
+	if status == TaskStateDone {
+		m.clear_dependency(taskid)
+	}
+
 	add_set := make(map[int]bool)
 	if len(add_blocked_by) > 0 {
 		for _, id := range task.BlockedBy {
@@ -198,6 +202,7 @@ func (m *TaskMgr) Update(taskid int, status TaskState, add_blocked_by []int, rem
 	if err := m.persist(task); err != nil {
 		return err
 	}
+
 	return nil
 }
 
