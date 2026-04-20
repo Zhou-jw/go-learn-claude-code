@@ -3,7 +3,9 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"glcc/console"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -27,6 +29,21 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				console.Red("auto_compact error: %v", err)
 				return
 			}
+		}
+
+		// s08: drain background tasks and append results to messages
+		bg_done_tasks := TASKMGR.drain()
+		if len(bg_done_tasks) > 0 {
+			var lines []string
+			for _, bg_task := range bg_done_tasks {
+				lines = append(lines, fmt.Sprintf("[bg_task: %d] %s: %s",
+					bg_task.ID, bg_task.State, bg_task.Output))
+			}
+			txt := strings.Join(lines, "\n")
+			bg_text := fmt.Sprintf("<background-results>\n%s\n</background-results>", txt)
+			*messages = append(*messages, anthropic.NewUserMessage(
+				anthropic.NewTextBlock(bg_text),
+			))
 		}
 
 		resp, err := client.Messages.New(context.Background(), anthropic.MessageNewParams{
@@ -74,7 +91,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				switch toolUse.Name {
 				case "task":
 					prompt := input["prompt"].(string)
-					
+
 					console.InfoOfLen(80, "> task: %s", prompt)
 					output = RunSubagent(client, modelID, prompt, round)
 				case "compact":

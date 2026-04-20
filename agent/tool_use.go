@@ -25,7 +25,7 @@ var TASKMGR *TaskMgr
 
 func init_tool_use() {
 	TODOMGR = NewTodoManager()
-	TASKMGR, _ = NewTaskMgr(filepath.Join(WORKDIR, "tasks"))
+	TASKMGR, _ = new_task_manager(filepath.Join(WORKDIR, "tasks"))
 }
 
 func safePath(p string) (string, error) {
@@ -38,14 +38,14 @@ func safePath(p string) (string, error) {
 	return absPath, nil
 }
 
-func runBash(command string) string {
+func runBash(command string, timeout int64) (string, error) {
 	for _, d := range dangerousCommands {
 		if strings.Contains(command, d) {
-			return "Error: Dangerous command blocked"
+			return "", fmt.Errorf("Error: Dangerous command blocked")
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)* time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
@@ -53,20 +53,20 @@ func runBash(command string) string {
 
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
-		return "Error: Timeout (120s)"
+		return "", fmt.Errorf("Error: Timeout (120s)")
 	}
 	if err != nil {
-		return fmt.Sprintf("Error: %v", err)
+		return "", err
 	}
 
 	out := strings.TrimSpace(string(output))
 	if out == "" {
-		return "(no output)"
+		out = "(no output)"
 	}
 	if len(out) > 50000 {
-		return out[:50000]
+		out = out[:50000] + "...\n"
 	}
-	return out
+	return out, nil
 }
 
 func runRead(path string, limit int) string {
@@ -142,7 +142,11 @@ func handleBash(input map[string]any) string {
 	if !ok {
 		return "Error: command is required"
 	}
-	return runBash(command)
+	out, err := runBash(command, 120)
+	if err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	return out
 }
 
 func handleReadFile(input map[string]any) string {
@@ -227,6 +231,26 @@ func handle_compact(input map[string]any) string {
 	return "Manual compression requested."
 }
 
+func handle_background_run(input map[string]any) string {
+	cmd, ok := input["command"].(string)
+	if !ok {
+		return "Error: cmd must be a string"
+	}
+	
+	timeout, ok := input["timeout"].(float64)
+	if !ok {
+		timeout = 120
+	}
+	
+	task, err := TASKMGR.create_bg_task(cmd)
+	if err != nil {
+		return "Error: " + err.Error()
+	}
+	
+	go TASKMGR.run_bg_task(task, int64(timeout))
+	return fmt.Sprintf("Task created: %d\n", task.ID)
+}
+
 func handle_task_create(input map[string]any) string {
 	subject, ok := input["subject"].(string)
 	if !ok {
@@ -236,7 +260,7 @@ func handle_task_create(input map[string]any) string {
 	if !ok {
 		return "Error: description must be a string"
 	}
-	task, err := TASKMGR.NewTask(subject, description)
+	task, err := TASKMGR.create_task(subject, description)
 	if err != nil {
 		return "Error: " + err.Error()
 	}
@@ -278,7 +302,7 @@ func handle_task_update(input map[string]any) string {
 		}
 	}
 
-	err := TASKMGR.Update(task_id, status, add_blocked_by, remove_blocked_by)
+	err := TASKMGR.update(task_id, status, add_blocked_by, remove_blocked_by)
 	if err != nil {
 		return fmt.Sprintf("Error: %s\n", err.Error())
 	}
@@ -286,7 +310,7 @@ func handle_task_update(input map[string]any) string {
 }
 
 func handle_task_list(input map[string]any) string {
-	return TASKMGR.ListAll()
+	return TASKMGR.list_all()
 }
 
 func handle_task_get(input map[string]any) string {
@@ -295,21 +319,22 @@ func handle_task_get(input map[string]any) string {
 		return "Error: task_id must be a string"
 	}
 	task_id := int(task_id_f64)
-	return TASKMGR.Get(task_id)
+	return TASKMGR.get(task_id)
 }
 
 var TOOL_HANDLERS = map[string]ToolHandler{
-	"bash":        handleBash,
-	"read_file":   handleReadFile,
-	"write_file":  handleWriteFile,
-	"edit_file":   handleEditFile,
-	"todo":        handleTodo,
-	"load_skill":  handle_load_skill,
-	"compact":     handle_compact,
-	"task_create": handle_task_create,
-	"task_update": handle_task_update,
-	"task_list":   handle_task_list,
-	"task_get":    handle_task_get,
+	"bash":           handleBash,
+	"read_file":      handleReadFile,
+	"write_file":     handleWriteFile,
+	"edit_file":      handleEditFile,
+	"todo":           handleTodo,
+	"load_skill":     handle_load_skill,
+	"compact":        handle_compact,
+	"background_run": handle_background_run,
+	"task_create":    handle_task_create,
+	"task_update":    handle_task_update,
+	"task_list":      handle_task_list,
+	"task_get":       handle_task_get,
 }
 
 var CHILD_TOOLS = []anthropic.ToolUnionParam{
@@ -438,6 +463,22 @@ var CHILD_TOOLS = []anthropic.ToolUnionParam{
 			},
 		},
 		"compact", // 工具名称
+	),
+	anthropic.ToolUnionParamOfTool(
+		anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"command": map[string]any{
+					"type":        "string",
+					"description": "The command to run in the background",
+				},
+				"timeout": map[string]any{
+					"type":        "integer",
+					"description": "The timeout for the background command",
+				},
+			},
+		},
+		"background_run", // 工具名称
 	),
 	anthropic.ToolUnionParamOfTool(
 		anthropic.ToolInputSchemaParam{

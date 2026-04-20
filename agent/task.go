@@ -18,18 +18,20 @@ const (
 	TaskStatePending TaskState = "pending"
 	TaskStateRunning TaskState = "running"
 	TaskStateDone    TaskState = "done"
+	TaskStateFailed  TaskState = "failed"
 )
 
 var stateMark = map[TaskState]string{
 	TaskStatePending: "[ ]",
 	TaskStateRunning: "[>]",
 	TaskStateDone:    "[√]",
+	TaskStateFailed:  "[✗]",
 }
 
 // 校验状态是否合法（替代原来的枚举检查）
-func (s TaskState) IsValid() bool {
+func (s TaskState) is_valid() bool {
 	switch s {
-	case TaskStatePending, TaskStateRunning, TaskStateDone:
+	case TaskStatePending, TaskStateRunning, TaskStateDone, TaskStateFailed:
 		return true
 	default:
 		return false
@@ -43,22 +45,29 @@ type Task struct {
 	State       TaskState `json:"state"`
 	BlockedBy   []int     `json:"blocked_by"`
 	Owner       string    `json:"owner"`
+
+	// === background task fields ===
+	IsBackground bool   `json:"is_background"`
+	Command      string `json:"command,omitempty"`
+	Output       string `json:"output,omitempty"`
 }
 
 type TaskMgr struct {
-	dir    string
-	tasks  map[int]*Task
-	nextid int
-	mu     sync.Mutex
+	dir     string
+	tasks   map[int]*Task
+	nextid  int
+	mu      sync.Mutex
+	bg_chan chan *Task
 }
 
-func NewTaskMgr(dir string) (*TaskMgr, error) {
+func new_task_manager(dir string) (*TaskMgr, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
 	tm := &TaskMgr{
-		dir:   dir,
-		tasks: make(map[int]*Task),
+		dir:     dir,
+		tasks:   make(map[int]*Task),
+		bg_chan: make(chan *Task, 20),
 	}
 	tm.load_all_from_disk()
 	tm.nextid = tm.max_id() + 1
@@ -87,30 +96,15 @@ func (m *TaskMgr) load_all_from_disk() error {
 func (m *TaskMgr) next_id() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.nextid
+	id := m.nextid
+	m.nextid++
+	return id
 }
 
 func (m *TaskMgr) max_id() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	files, err := filepath.Glob(filepath.Join(m.dir, "task_*.json"))
-	if err != nil || len(files) == 0 {
-		return 0
-	}
 
 	max_id := 0
-	for _, f := range files {
-		base := filepath.Base(f)
-		parts := strings.Split(base, "_")
-		if len(parts) < 2 {
-			continue
-		}
-		idstr := strings.TrimSuffix(parts[1], ".json")
-		id, err := strconv.Atoi(idstr)
-		if err != nil {
-			continue
-		}
+	for id := range m.tasks {
 		if id > max_id {
 			max_id = id
 		}
@@ -141,9 +135,11 @@ func (m *TaskMgr) persist(task *Task) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (m *TaskMgr) NewTask(subject string, description string) (*Task, error) {
+func (m *TaskMgr) create_task(subject string, description string) (*Task, error) {
+	id := m.next_id()
+
 	task := &Task{
-		ID:          m.next_id(),
+		ID:          id,
 		Subject:     subject,
 		Description: description,
 		State:       TaskStatePending,
@@ -154,19 +150,78 @@ func (m *TaskMgr) NewTask(subject string, description string) (*Task, error) {
 		return nil, err
 	}
 
+	m.mu.Lock()
 	m.tasks[task.ID] = task
-	m.nextid++
+	m.mu.Unlock()
+	
+	return task, nil
+}
+
+func (m *TaskMgr) create_bg_task(command string) (*Task, error) {
+	id := m.next_id()
+
+	task := &Task{
+		ID:           id,
+		Description:  fmt.Sprintf("Background Task: %s", command),
+		State:        TaskStateRunning,
+		BlockedBy:    []int{},
+		IsBackground: true,
+		Command:      command,
+	}
+	if err := m.persist(task); err != nil {
+		return nil, err
+	}
+
+	m.mu.Lock()
+	m.tasks[task.ID] = task
+	m.mu.Unlock()
+	
 
 	return task, nil
 }
 
-func (m *TaskMgr) Update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
+func (m *TaskMgr) run_bg_task(task *Task, timeout int64) {
+	output, err := runBash(task.Command, timeout)
+
+	m.mu.Lock()
+	if err != nil {
+		task.State = TaskStateFailed
+	} else {
+		task.State = TaskStateDone
+	}
+	task.Output = output
+	m.mu.Unlock()
+
+	_ = m.persist(task)
+	m.bg_chan <- task
+}
+
+func (m *TaskMgr) drain() []*Task {
+	var list []*Task
+	for {
+		select {
+		case t := <-m.bg_chan:
+			list = append(list, t)
+		default:
+			return list
+		}
+	}
+}
+
+func DrainBackgroundTasks() []*Task {
+	if TASKMGR == nil {
+		return nil
+	}
+	return TASKMGR.drain()
+}
+
+func (m *TaskMgr) update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return fmt.Errorf("task %d not found", taskid)
 	}
 
-	if status.IsValid() {
+	if status.is_valid() {
 		task.State = status
 	}
 
@@ -174,36 +229,23 @@ func (m *TaskMgr) Update(taskid int, status TaskState, add_blocked_by []int, rem
 		m.clear_dependency(taskid)
 	}
 
-	add_set := make(map[int]bool)
-	if len(add_blocked_by) > 0 {
-		for _, id := range task.BlockedBy {
-			add_set[id] = true
-		}
-		for _, id := range add_blocked_by {
-			add_set[id] = true
-		}
+	newBlock := make(map[int]bool)
+	for _, bid := range task.BlockedBy {
+		newBlock[bid] = true
+	}
+	for _, bid := range add_blocked_by {
+		newBlock[bid] = true
+	}
+	for _, bid := range remove_blocked_by {
+		delete(newBlock, bid)
 	}
 
-	rm_set := make(map[int]bool)
-	if len(remove_blocked_by) > 0 {
-		for _, id := range remove_blocked_by {
-			rm_set[id] = true
-		}
+	task.BlockedBy = make([]int, 0, len(newBlock))
+	for bid := range newBlock {
+		task.BlockedBy = append(task.BlockedBy, bid)
 	}
 
-	new_blocked := make([]int, 0, len(add_set))
-	for id := range add_set {
-		if !rm_set[id] {
-			new_blocked = append(new_blocked, id)
-		}
-	}
-	task.BlockedBy = new_blocked
-
-	if err := m.persist(task); err != nil {
-		return err
-	}
-
-	return nil
+	return m.persist(task)
 }
 
 func (m *TaskMgr) clear_dependency(taskid int) {
@@ -226,7 +268,7 @@ func (m *TaskMgr) clear_dependency(taskid int) {
 	}
 }
 
-func (m *TaskMgr) ListAll() string {
+func (m *TaskMgr) list_all() string {
 	if len(m.tasks) == 0 {
 		return "No tasks."
 	}
@@ -239,13 +281,13 @@ func (m *TaskMgr) ListAll() string {
 
 	var lines []string
 	for _, id := range ids {
-		line := m.Get(id)
+		line := m.get(id)
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "")
 }
 
-func (m *TaskMgr) Get(taskid int) string {
+func (m *TaskMgr) get(taskid int) string {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return "Task not found."
