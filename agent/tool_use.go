@@ -1,13 +1,8 @@
 package agent
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
+	"glcc/agent/tools"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -20,120 +15,6 @@ var dangerousCommands = []string{
 	"> /dev/",
 }
 
-var TODOMGR *TodoManager
-var TASKMGR *TaskMgr
-
-func init_tool_use() {
-	TODOMGR = NewTodoManager()
-	TASKMGR, _ = new_task_manager(filepath.Join(WORKDIR, "tasks"))
-}
-
-func safePath(p string) (string, error) {
-	absPath := filepath.Join(WORKDIR, p)
-	absPath = filepath.Clean(absPath)
-	workDirAbs, _ := filepath.Abs(WORKDIR)
-	if !strings.HasPrefix(absPath, workDirAbs) {
-		return "", fmt.Errorf("path escapes workspace: %s", p)
-	}
-	return absPath, nil
-}
-
-func runBash(command string, timeout int64) (string, error) {
-	for _, d := range dangerousCommands {
-		if strings.Contains(command, d) {
-			return "", fmt.Errorf("Error: Dangerous command blocked")
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)* time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "bash", "-c", command)
-	cmd.Dir = WORKDIR
-
-	output, err := cmd.CombinedOutput()
-	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("Error: Timeout (120s)")
-	}
-	if err != nil {
-		return "", err
-	}
-
-	out := strings.TrimSpace(string(output))
-	if out == "" {
-		out = "(no output)"
-	}
-	if len(out) > 50000 {
-		out = out[:50000] + "...\n"
-	}
-	return out, nil
-}
-
-func runRead(path string, limit int) string {
-	safePath, err := safePath(path)
-	if err != nil {
-		return fmt.Sprintf("Error: %s", err)
-	}
-
-	content, err := os.ReadFile(safePath)
-	if err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	text := string(content)
-	if len(text) > 50000 {
-		text = text[:50000]
-	}
-
-	lines := strings.Split(text, "\n")
-	if limit > 0 && limit < len(lines) {
-		lines = append(lines[:limit], fmt.Sprintf("... (%d more lines)", len(lines)-limit))
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-func runWrite(path string, content string) string {
-	safePath, err := safePath(path)
-	if err != nil {
-		return fmt.Sprintf("Error: %s", err)
-	}
-
-	dir := filepath.Dir(safePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	if err := os.WriteFile(safePath, []byte(content), 0644); err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	return fmt.Sprintf("Wrote %d bytes to %s", len(content), path)
-}
-
-func runEdit(path string, oldText string, newText string) string {
-	safePath, err := safePath(path)
-	if err != nil {
-		return fmt.Sprintf("Error: %s", err)
-	}
-
-	content, err := os.ReadFile(safePath)
-	if err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	text := string(content)
-	if !strings.Contains(text, oldText) {
-		return fmt.Sprintf("Error: Text not found in %s", path)
-	}
-
-	newContent := strings.Replace(text, oldText, newText, 1)
-	if err := os.WriteFile(safePath, []byte(newContent), 0644); err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	return fmt.Sprintf("Edited %s", path)
-}
 
 type ToolHandler func(input map[string]any) string
 
@@ -142,7 +23,7 @@ func handleBash(input map[string]any) string {
 	if !ok {
 		return "Error: command is required"
 	}
-	out, err := runBash(command, 120)
+	out, err := tools.RunBash(command, 120, WORKDIR)
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)
 	}
@@ -158,7 +39,7 @@ func handleReadFile(input map[string]any) string {
 	if l, ok := input["limit"].(float64); ok {
 		limit = int(l)
 	}
-	return runRead(path, limit)
+	return tools.RunRead(path, WORKDIR, limit)
 }
 
 func handleWriteFile(input map[string]any) string {
@@ -170,7 +51,7 @@ func handleWriteFile(input map[string]any) string {
 	if !ok {
 		return "Error: content is required"
 	}
-	return runWrite(path, content)
+	return tools.RunWrite(path, content, WORKDIR)
 }
 
 func handleEditFile(input map[string]any) string {
@@ -186,7 +67,7 @@ func handleEditFile(input map[string]any) string {
 	if !ok {
 		return "Error: new_text is required"
 	}
-	return runEdit(path, oldText, newText)
+	return tools.RunEdit(path, oldText, newText, WORKDIR)
 }
 
 func handleTodo(input map[string]any) string {
@@ -236,17 +117,17 @@ func handle_background_run(input map[string]any) string {
 	if !ok {
 		return "Error: cmd must be a string"
 	}
-	
+
 	timeout, ok := input["timeout"].(float64)
 	if !ok {
 		timeout = 120
 	}
-	
+
 	task, err := TASKMGR.create_bg_task(cmd)
 	if err != nil {
 		return "Error: " + err.Error()
 	}
-	
+
 	go TASKMGR.run_bg_task(task, int64(timeout))
 	return fmt.Sprintf("Task created: %d\n", task.ID)
 }

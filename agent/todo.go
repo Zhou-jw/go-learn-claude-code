@@ -33,6 +33,12 @@ type TodoManager struct {
 	todos []TodoItem
 }
 
+var TODOMGR *TodoManager
+
+func init_todo_manager() {
+	TODOMGR = NewTodoManager()
+}
+
 func NewTodoManager() *TodoManager {
 	return &TodoManager{
 		todos: make([]TodoItem, 0),

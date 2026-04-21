@@ -57,13 +57,18 @@ func main() {
 	agent.InitAll()
 	for {
 		console.Cyan("s01 >> ")
+		
 		query, err := reader.ReadString('\n')
 		if err != nil {
 			break
 		}
 		query = strings.TrimSpace(query)
-		if query == "" || query == "q" || query == "exit" {
+
+		if strings.ToLower(query) == "q" || strings.ToLower(query) == "exit" {
 			break
+		}
+		if strings.ToLower(query) == "/team" {
+			console.Info("Team members: %s", )
 		}
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))

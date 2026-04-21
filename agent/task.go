@@ -3,6 +3,8 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"glcc/agent/tools"
+	"glcc/console"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,6 +12,8 @@ import (
 	"strings"
 	"sync"
 )
+
+var TASKMGR *TaskManager
 
 // ==================== TaskState ====================
 type TaskState string
@@ -23,7 +27,7 @@ const (
 
 var stateMark = map[TaskState]string{
 	TaskStatePending: "[ ]",
-	TaskStateRunning: "[>]",
+	TaskStateRunning: "[·]",
 	TaskStateDone:    "[√]",
 	TaskStateFailed:  "[✗]",
 }
@@ -52,7 +56,7 @@ type Task struct {
 	Output       string `json:"output,omitempty"`
 }
 
-type TaskMgr struct {
+type TaskManager struct {
 	dir     string
 	tasks   map[int]*Task
 	nextid  int
@@ -60,11 +64,11 @@ type TaskMgr struct {
 	bg_chan chan *Task
 }
 
-func new_task_manager(dir string) (*TaskMgr, error) {
+func new_task_manager(dir string) (*TaskManager, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	tm := &TaskMgr{
+	tm := &TaskManager{
 		dir:     dir,
 		tasks:   make(map[int]*Task),
 		bg_chan: make(chan *Task, 20),
@@ -74,7 +78,15 @@ func new_task_manager(dir string) (*TaskMgr, error) {
 	return tm, nil
 }
 
-func (m *TaskMgr) load_all_from_disk() error {
+func Init_task_manager(workdir string) {
+	var err error
+	TASKMGR, err = new_task_manager(filepath.Join(workdir, "tasks"))
+	if err != nil {
+		console.Red("Fail to init task manager")
+	}
+}
+
+func (m *TaskManager) load_all_from_disk() error {
 	files, err := filepath.Glob(filepath.Join(m.dir, "task_*.json"))
 	if err != nil {
 		return err
@@ -93,7 +105,7 @@ func (m *TaskMgr) load_all_from_disk() error {
 	return nil
 }
 
-func (m *TaskMgr) next_id() int {
+func (m *TaskManager) next_id() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	id := m.nextid
@@ -101,7 +113,7 @@ func (m *TaskMgr) next_id() int {
 	return id
 }
 
-func (m *TaskMgr) max_id() int {
+func (m *TaskManager) max_id() int {
 
 	max_id := 0
 	for id := range m.tasks {
@@ -112,7 +124,7 @@ func (m *TaskMgr) max_id() int {
 	return max_id
 }
 
-func (m *TaskMgr) load(taskid int) (*Task, error) {
+func (m *TaskManager) load(taskid int) (*Task, error) {
 	path := filepath.Join(m.dir, "task_"+strconv.Itoa(taskid)+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -126,7 +138,7 @@ func (m *TaskMgr) load(taskid int) (*Task, error) {
 	return &task, nil
 }
 
-func (m *TaskMgr) persist(task *Task) error {
+func (m *TaskManager) persist(task *Task) error {
 	path := filepath.Join(m.dir, "task_"+strconv.Itoa(task.ID)+".json")
 	data, err := json.MarshalIndent(task, "", "  ")
 	if err != nil {
@@ -135,7 +147,7 @@ func (m *TaskMgr) persist(task *Task) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (m *TaskMgr) create_task(subject string, description string) (*Task, error) {
+func (m *TaskManager) create_task(subject string, description string) (*Task, error) {
 	id := m.next_id()
 
 	task := &Task{
@@ -157,7 +169,7 @@ func (m *TaskMgr) create_task(subject string, description string) (*Task, error)
 	return task, nil
 }
 
-func (m *TaskMgr) create_bg_task(command string) (*Task, error) {
+func (m *TaskManager) create_bg_task(command string) (*Task, error) {
 	id := m.next_id()
 
 	task := &Task{
@@ -180,8 +192,8 @@ func (m *TaskMgr) create_bg_task(command string) (*Task, error) {
 	return task, nil
 }
 
-func (m *TaskMgr) run_bg_task(task *Task, timeout int64) {
-	output, err := runBash(task.Command, timeout)
+func (m *TaskManager) run_bg_task(task *Task, timeout int64) {
+	output, err := tools.RunBash(task.Command, timeout, WORKDIR)
 
 	m.mu.Lock()
 	if err != nil {
@@ -196,7 +208,7 @@ func (m *TaskMgr) run_bg_task(task *Task, timeout int64) {
 	m.bg_chan <- task
 }
 
-func (m *TaskMgr) drain() []*Task {
+func (m *TaskManager) drain() []*Task {
 	var list []*Task
 	for {
 		select {
@@ -215,7 +227,7 @@ func DrainBackgroundTasks() []*Task {
 	return TASKMGR.drain()
 }
 
-func (m *TaskMgr) update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
+func (m *TaskManager) update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return fmt.Errorf("task %d not found", taskid)
@@ -248,7 +260,7 @@ func (m *TaskMgr) update(taskid int, status TaskState, add_blocked_by []int, rem
 	return m.persist(task)
 }
 
-func (m *TaskMgr) clear_dependency(taskid int) {
+func (m *TaskManager) clear_dependency(taskid int) {
 	for _, task := range m.tasks {
 		changed := false
 		new_blocked := make([]int, 0, len(task.BlockedBy))
@@ -268,7 +280,7 @@ func (m *TaskMgr) clear_dependency(taskid int) {
 	}
 }
 
-func (m *TaskMgr) list_all() string {
+func (m *TaskManager) list_all() string {
 	if len(m.tasks) == 0 {
 		return "No tasks."
 	}
@@ -287,7 +299,7 @@ func (m *TaskMgr) list_all() string {
 	return strings.Join(lines, "")
 }
 
-func (m *TaskMgr) get(taskid int) string {
+func (m *TaskManager) get(taskid int) string {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return "Task not found."
