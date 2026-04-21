@@ -28,10 +28,10 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 			buf, err := json.MarshalIndent(inbox, "", "  ")
 			if err != nil {
 				console.Red("json marshal error: %v", err)
-				buf = []byte(fmt.Sprintf("<inbox>[]</inbox>"))
+				buf = fmt.Appendf(nil, "<inbox>[]</inbox>")
 				continue
 			} else {
-				buf = []byte(fmt.Sprintf("<inbox>%s</inbox>", buf))
+				buf = fmt.Appendf(nil, "<inbox>%s</inbox>", buf)
 			}
 			*messages = append(*messages, anthropic.NewUserMessage(
 				anthropic.NewTextBlock(string(buf)),
