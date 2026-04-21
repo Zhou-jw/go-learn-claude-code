@@ -1,12 +1,12 @@
 package tester
 
 import (
-	"glcc/agent"
+	"glcc/agent/tools"
 	"testing"
 )
 
 func TestToolBash(t *testing.T) {
-	result := agent.DispatchTool("bash", map[string]any{"command":"pwd"})
+	result := tools.DispatchTool("bash", map[string]any{"command":"pwd"})
 	if result != "" {
 		t.Logf("success, got %s", result)
 	}
@@ -18,7 +18,7 @@ func TestToolWriteAndRead(t *testing.T) {
 	writeContent := "hello world\nthis is test content"
 
 	// 2. 调用 write_file 工具（写文件）
-	writeResult := agent.DispatchTool("write_file", map[string]any{
+	writeResult := tools.DispatchTool("write_file", map[string]any{
 		"path":    testFile,
 		"content": writeContent,
 	})
@@ -26,7 +26,7 @@ func TestToolWriteAndRead(t *testing.T) {
 
 
 	// 3. 调用 read_file 工具（读文件）
-	readResult := agent.DispatchTool("read_file", map[string]any{
+	readResult := tools.DispatchTool("read_file", map[string]any{
 		"path": testFile,
 	})
 	t.Logf("📖 读文件结果:\n%s", readResult)

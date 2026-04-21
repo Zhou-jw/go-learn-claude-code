@@ -1,7 +1,7 @@
 package tester
 
 import (
-	"glcc/agent"
+	"glcc/agent/tools"
 	"os"
 	"strings"
 	"testing"
@@ -15,6 +15,7 @@ func TestMain(m *testing.M) {
 }
 
 var name = "todo"
+
 // 测试 todo 工具：正常添加任务
 func TestTodoTool_Works(t *testing.T) {
 	// 这就是 AI 传给你的 input 格式
@@ -34,7 +35,7 @@ func TestTodoTool_Works(t *testing.T) {
 	}
 
 	// 调用工具
-	result := agent.DispatchTool(name,input)
+	result := tools.DispatchTool(name, input)
 	t.Log(result)
 
 	// 验证没有报错
@@ -54,7 +55,7 @@ func TestTodoTool_NoTwoInProgress(t *testing.T) {
 		},
 	}
 
-	result := agent.DispatchTool(name, input)
+	result := tools.DispatchTool(name, input)
 	if !strings.Contains(result, "only one task can be in_progress") {
 		t.Fatalf("应该阻止两个进行中任务，但没有: %s", result)
 	}
@@ -69,7 +70,7 @@ func TestTodoTool_InvalidStatus(t *testing.T) {
 		},
 	}
 
-	result := agent.DispatchTool(name, input)
+	result := tools.DispatchTool(name, input)
 	if !strings.Contains(result, "invalid status") {
 		t.Fatalf("应该拒绝无效状态，但没有: %s", result)
 	}
@@ -84,7 +85,7 @@ func TestTodoTool_EmptyText(t *testing.T) {
 		},
 	}
 
-	result := agent.DispatchTool(name, input)
+	result := tools.DispatchTool(name, input)
 	if !strings.Contains(result, "text required") {
 		t.Fatalf("应该拦截空文本，但没有: %s", result)
 	}

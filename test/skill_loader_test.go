@@ -2,9 +2,8 @@ package tester
 
 import (
 	// "fmt"
+	"glcc/agent/tools"
 	"testing"
-
-	"glcc/agent"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +17,7 @@ func setupTestDir() string {
 // 测试：加载所有技能
 func TestSkillLoader_LoadAll(t *testing.T) {
 	dir := setupTestDir()
-	loader := agent.NewSkillLoader(dir)
+	loader := tools.NewSkillLoader(dir)
 
 	// 应该加载 4 个技能
 	assert.Len(t, loader.Skills, 4)
@@ -32,12 +31,12 @@ func TestSkillLoader_LoadAll(t *testing.T) {
 
 // 测试：解析 yaml frontmatter
 func TestSkillLoader_ParseFrontmatter(t *testing.T) {
-	loader := &agent.SkillLoader{}
+	loader := &tools.SkillLoader{}
 	text := `---
-name: test
-desc: hello
----
-body content`
+			name: test
+			desc: hello
+			---
+			body content`
 
 	meta, body := loader.ParseFrontmatter(text)
 	assert.Equal(t, "test", meta["name"])
@@ -53,7 +52,7 @@ body content`
 // 测试：获取技能描述列表
 func TestSkillLoader_GetDescriptions(t *testing.T) {
 	dir := setupTestDir()
-	loader := agent.NewSkillLoader(dir)
+	loader := tools.NewSkillLoader(dir)
 	desc := loader.GetDescriptions()
 
 	// fmt.Println(desc)
@@ -68,19 +67,19 @@ func TestSkillLoader_GetDescriptions(t *testing.T) {
 // 测试：获取单个技能内容
 func TestSkillLoader_GetContent(t *testing.T) {
 	dir := setupTestDir()
-	loader := agent.NewSkillLoader(dir)
+	loader := tools.NewSkillLoader(dir)
 
 	// 正常获取
-	content := loader.GetContent( "pdf")
+	content := loader.GetContent("pdf")
 	assert.Contains(t, content, "<skill name=\"pdf\">")
 	// fmt.Println(content)
 	// first line should be "# PDF Processing Skill"
 	assert.Contains(t, content, "# PDF Processing Skill")
-	// last line 
+	// last line
 	assert.Contains(t, content, "4. **OCR for scanned PDFs**: Use `pytesseract` if text extraction returns empty")
 
 	// 不存在的技能
-	errContent := loader.GetContent( "not_exist")
+	errContent := loader.GetContent("not_exist")
 	assert.Contains(t, errContent, "Error: Unknown skill 'not_exist'")
 	// assert.Contains(t, errContent, "agent-builder, code-review, mcp-builder, pdf")
 
@@ -91,7 +90,7 @@ func TestSkillLoader_GetContent(t *testing.T) {
 
 // 测试：目录不存在时返回空
 func TestSkillLoader_DirNotExist(t *testing.T) {
-	loader := agent.NewSkillLoader("not_exist_dir")
+	loader := tools.NewSkillLoader("not_exist_dir")
 	assert.Empty(t, loader.Skills)
 	assert.Equal(t, "(no skills available)", loader.GetDescriptions())
 }

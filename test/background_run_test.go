@@ -3,6 +3,7 @@ package tester
 import (
 	"fmt"
 	"glcc/agent"
+	"glcc/agent/tools"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func TestHandleBackgroundRun(t *testing.T) {
 		"timeout": float64(30),
 	}
 
-	result := agent.DispatchTool("background_run", input)
+	result := tools.DispatchTool("background_run", input)
 	t.Logf("Result: %s", result)
 
 	if !strings.Contains(result, "Task created:") {
@@ -35,14 +36,14 @@ func TestHandleBackgroundRun(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	tasks := agent.DrainBackgroundTasks()
+	tasks := tools.DrainBackgroundTasks()
 	if len(tasks) == 0 {
 		t.Fatalf("drain returned no tasks, expected to get completion signal")
 	}
 
 	found := false
 	for _, task := range tasks {
-		if task.State == agent.TaskStateDone || task.State == agent.TaskStateFailed {
+		if task.State == tools.TaskStateDone || task.State == tools.TaskStateFailed {
 			found = true
 			t.Logf("Task %d completed with state: %s, output: %s", task.ID, task.State, task.Output)
 		}
@@ -57,18 +58,18 @@ func TestHandleBackgroundRun(t *testing.T) {
 func TestHandleBackgroundRunMultiple(t *testing.T) {
 	ensureInit()
 
-	agent.DispatchTool("background_run", map[string]any{
+	tools.DispatchTool("background_run", map[string]any{
 		"command": "echo 'task1'",
 		"timeout": 30,
 	})
-	agent.DispatchTool("background_run", map[string]any{
+	tools.DispatchTool("background_run", map[string]any{
 		"command": "echo 'task2'",
 		"timeout": 30,
 	})
 
 	time.Sleep(500 * time.Millisecond)
 
-	tasks := agent.DrainBackgroundTasks()
+	tasks := tools.DrainBackgroundTasks()
 	if len(tasks) < 2 {
 		t.Fatalf("Expected at least 2 tasks, got %d", len(tasks))
 	}
