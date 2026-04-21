@@ -128,50 +128,8 @@ func (mt *memberThread) execTool(toolName string, input json.RawMessage) string 
 }
 
 func (mt *memberThread) tools() []anthropic.ToolUnionParam {
-	return []anthropic.ToolUnionParam{
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"command": map[string]any{"type": "string"},
-				},
-				Required: []string{"command"},
-			},
-			"bash",
-		),
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"path": map[string]any{"type": "string"},
-				},
-				Required: []string{"path"},
-			},
-			"read_file",
-		),
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"path":    map[string]any{"type": "string"},
-					"content": map[string]any{"type": "string"},
-				},
-				Required: []string{"path", "content"},
-			},
-			"write_file",
-		),
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"path":     map[string]any{"type": "string"},
-					"old_text": map[string]any{"type": "string"},
-					"new_text": map[string]any{"type": "string"},
-				},
-				Required: []string{"path", "old_text", "new_text"},
-			},
-			"edit_file",
-		),
+	core_tools := tools.CoreTools()
+	team_tools := []anthropic.ToolUnionParam{
 		anthropic.ToolUnionParamOfTool(
 			anthropic.ToolInputSchemaParam{
 				Type: "object",
@@ -192,4 +150,5 @@ func (mt *memberThread) tools() []anthropic.ToolUnionParam {
 			"read_inbox",
 		),
 	}
+	return append(core_tools, team_tools...)
 }

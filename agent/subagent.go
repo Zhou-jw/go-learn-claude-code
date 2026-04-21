@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glcc/agent/tools"
 	"glcc/console"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -88,4 +89,11 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 		return "(no summary)"
 	}
 	return finalText
+}
+
+func SubagentTools() []anthropic.ToolUnionParam {
+	subagent_tools := append(tools.CoreTools(), tools.CommonTools()...)
+	subagent_tools = append(subagent_tools, tools.TaskTools()...)
+	
+	return subagent_tools
 }

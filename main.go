@@ -8,11 +8,12 @@ import (
 	"strings"
 	"syscall"
 
+	"glcc/agent"
+	"glcc/config"
+	"glcc/console"
+
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"glcc/config"
-	"glcc/agent"
-	"glcc/console"
 )
 
 func main() {
@@ -57,18 +58,23 @@ func main() {
 	agent.InitAll()
 	for {
 		console.Cyan("s01 >> ")
-		
+
 		query, err := reader.ReadString('\n')
 		if err != nil {
 			break
 		}
 		query = strings.TrimSpace(query)
+		query = strings.ToLower(query)
 
-		if strings.ToLower(query) == "q" || strings.ToLower(query) == "exit" {
+		if query == "q" || query == "exit" {
 			break
 		}
-		if strings.ToLower(query) == "/team" {
-			console.Info("Team members: %s", )
+		if query == "/team" {
+			console.Info("%s", team.TEAMMATE_MGR.ListAll())
+			continue
+		}
+		if query == "/inbox" {
+			continue
 		}
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))

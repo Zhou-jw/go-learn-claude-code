@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glcc/agent/tools"
 	"glcc/console"
 	"strings"
 
@@ -119,4 +120,10 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 		*messages = append(*messages, anthropic.NewUserMessage(toolResults...))
 	}
+}
+
+func MainAgentTools() []anthropic.ToolUnionParam {
+	mainagent_tools := SubagentTools()
+	mainagent_tools = append(mainagent_tools, tools.SpawnSubagentTool()...)
+	return mainagent_tools
 }
