@@ -5,7 +5,7 @@
  * 4. Build an MCP server using the mcp-builder skill
  */
  
-package agent
+package tools
 
 import (
 	"bytes"
@@ -23,9 +23,8 @@ import (
 var SKILL_LOADER *SkillLoader
 
 // 初始化全局 loader
-func init() {
-	skillsDir, _ := os.Getwd()
-	skillsDir = filepath.Join(skillsDir, "skills")
+func init_skills(workdir string) {
+	skillsDir := filepath.Join(workdir, "skills")
 	if skillsDir == "" {
 		skillsDir = "skills"
 	}

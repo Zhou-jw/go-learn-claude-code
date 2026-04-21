@@ -2,19 +2,20 @@ package agent
 
 import (
 	"glcc/agent/team"
+	"glcc/agent/tools"
 	"os"
 )
 
 var WORKDIR string
+var CHILD_TOOLS = SubagentTools()
+var PARENT_TOOLS = MainAgentTools()
 
 func InitAll() {
 	WORKDIR, _ = os.Getwd()
 
-	init_prompt()
-	init_todo_manager()
-	Init_task_manager(WORKDIR)
-	
 	init_persist()
+	tools.Init_tools(WORKDIR)
+	init_prompt()
 	team.Init_teammate_manager(WORKDIR)
-	
+
 }

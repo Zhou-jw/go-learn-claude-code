@@ -3,6 +3,7 @@ package bus
 import (
 	"encoding/json"
 	"fmt"
+	"glcc/console"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,11 +66,12 @@ func (b *JSONLBus) ReadInbox(name string) []Message {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
+		console.Red("fail to read inbox %s.", path)
 		return nil
 	}
 
 	var msgs []Message
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
 		if line == "" {
 			continue
 		}

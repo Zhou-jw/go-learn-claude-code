@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"glcc/agent"
+	"glcc/agent/team"
 	"glcc/config"
 	"glcc/console"
 

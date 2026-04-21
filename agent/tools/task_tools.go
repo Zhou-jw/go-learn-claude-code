@@ -1,9 +1,8 @@
-package agent
+package tools
 
 import (
 	"encoding/json"
 	"fmt"
-	"glcc/agent/tools"
 	"glcc/console"
 	"os"
 	"path/filepath"
@@ -78,7 +77,7 @@ func new_task_manager(dir string) (*TaskManager, error) {
 	return tm, nil
 }
 
-func Init_task_manager(workdir string) {
+func init_task_manager(workdir string) {
 	var err error
 	TASKMGR, err = new_task_manager(filepath.Join(workdir, "tasks"))
 	if err != nil {
@@ -192,8 +191,8 @@ func (m *TaskManager) create_bg_task(command string) (*Task, error) {
 	return task, nil
 }
 
-func (m *TaskManager) run_bg_task(task *Task, timeout int64) {
-	output, err := tools.RunBash(task.Command, timeout, WORKDIR)
+func (m *TaskManager) run_bg_task(task *Task, timeout int64, workdir string) {
+	output, err := RunBash(task.Command, timeout, workdir)
 
 	m.mu.Lock()
 	if err != nil {
@@ -208,7 +207,7 @@ func (m *TaskManager) run_bg_task(task *Task, timeout int64) {
 	m.bg_chan <- task
 }
 
-func (m *TaskManager) drain() []*Task {
+func (m *TaskManager) Drain() []*Task {
 	var list []*Task
 	for {
 		select {
@@ -224,7 +223,7 @@ func DrainBackgroundTasks() []*Task {
 	if TASKMGR == nil {
 		return nil
 	}
-	return TASKMGR.drain()
+	return TASKMGR.Drain()
 }
 
 func (m *TaskManager) update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {

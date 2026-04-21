@@ -60,7 +60,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 				json.Unmarshal(toolUse.Input, &input)
 
 				console.Yellow("> %s\n", toolUse.Name)
-				output := DispatchTool(toolUse.Name, input)
+				output := tools.DispatchTool(toolUse.Name, input)
 				if len(output) > 50000 {
 					output = output[:50000]
 				}

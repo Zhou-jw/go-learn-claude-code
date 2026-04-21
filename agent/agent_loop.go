@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glcc/agent/team"
 	"glcc/agent/tools"
 	"glcc/console"
 	"strings"
@@ -18,6 +19,24 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 	round := 0
 	for {
+		inbox := team.TEAMMATE_MGR.Bus().ReadInbox("lead")
+		if inbox != nil {
+			if len(inbox) == 0 {
+				continue
+			}
+			
+			buf, err := json.MarshalIndent(inbox, "", "  ")
+			if err != nil {
+				console.Red("json marshal error: %v", err)
+				buf = []byte(fmt.Sprintf("<inbox>[]</inbox>"))
+				continue
+			} else {
+				buf = []byte(fmt.Sprintf("<inbox>%s</inbox>", buf))
+			}
+			*messages = append(*messages, anthropic.NewUserMessage(
+				anthropic.NewTextBlock(string(buf)),
+			))
+		}
 		// layer1: micro_compact before each LLM call
 		MicroCompact(messages)
 
@@ -33,7 +52,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		// s08: drain background tasks and append results to messages
-		bg_done_tasks := TASKMGR.drain()
+		bg_done_tasks := tools.TASKMGR.Drain()
 		if len(bg_done_tasks) > 0 {
 			var lines []string
 			for _, bg_task := range bg_done_tasks {
@@ -99,7 +118,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 					need_manual_compact = true
 					console.Info("Compressing...")
 				default:
-					output = DispatchTool(toolUse.Name, input)
+					output = tools.DispatchTool(toolUse.Name, input)
 				}
 
 				console.InfoOfLen(200, "%s", output)

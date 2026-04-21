@@ -1,8 +1,7 @@
-package agent
+package tools
 
 import (
 	"fmt"
-	"glcc/agent/tools"
 )
 
 var dangerousCommands = []string{
@@ -20,7 +19,7 @@ func handleBash(input map[string]any) string {
 	if !ok {
 		return "Error: command is required"
 	}
-	out, err := tools.RunBash(command, 120, WORKDIR)
+	out, err := RunBash(command, 120, WORKDIR)
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)
 	}
@@ -36,7 +35,7 @@ func handleReadFile(input map[string]any) string {
 	if l, ok := input["limit"].(float64); ok {
 		limit = int(l)
 	}
-	return tools.RunRead(path, WORKDIR, limit)
+	return RunRead(path, WORKDIR, limit)
 }
 
 func handleWriteFile(input map[string]any) string {
@@ -48,7 +47,7 @@ func handleWriteFile(input map[string]any) string {
 	if !ok {
 		return "Error: content is required"
 	}
-	return tools.RunWrite(path, content, WORKDIR)
+	return RunWrite(path, content, WORKDIR)
 }
 
 func handleEditFile(input map[string]any) string {
@@ -64,7 +63,7 @@ func handleEditFile(input map[string]any) string {
 	if !ok {
 		return "Error: new_text is required"
 	}
-	return tools.RunEdit(path, oldText, newText, WORKDIR)
+	return RunEdit(path, oldText, newText, WORKDIR)
 }
 
 func handleTodo(input map[string]any) string {
@@ -125,7 +124,7 @@ func handle_background_run(input map[string]any) string {
 		return "Error: " + err.Error()
 	}
 
-	go TASKMGR.run_bg_task(task, int64(timeout))
+	go TASKMGR.run_bg_task(task, int64(timeout), WORKDIR)
 	return fmt.Sprintf("Task created: %d\n", task.ID)
 }
 
@@ -214,10 +213,6 @@ var TOOL_HANDLERS = map[string]ToolHandler{
 	"task_list":      handle_task_list,
 	"task_get":       handle_task_get,
 }
-
-var CHILD_TOOLS = SubagentTools()
-
-var PARENT_TOOLS = MainAgentTools()
 
 func DispatchTool(name string, input map[string]any) string {
 	handler, ok := TOOL_HANDLERS[name]
