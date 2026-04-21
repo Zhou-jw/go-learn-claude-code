@@ -12,7 +12,7 @@ import (
 
 type memberThread struct {
 	name, role, prompt, workdir string
-	client                      anthropic.Client
+	client                      *anthropic.Client
 	modelID                     string
 	mgr                         *TeammateManager
 }
@@ -129,26 +129,6 @@ func (mt *memberThread) execTool(toolName string, input json.RawMessage) string 
 
 func (mt *memberThread) tools() []anthropic.ToolUnionParam {
 	core_tools := tools.CoreTools()
-	team_tools := []anthropic.ToolUnionParam{
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"to":       map[string]any{"type": "string"},
-					"content":  map[string]any{"type": "string"},
-					"msg_type": map[string]any{"type": "string"},
-				},
-				Required: []string{"to", "content"},
-			},
-			"send_message",
-		),
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type:       "object",
-				Properties: map[string]any{},
-			},
-			"read_inbox",
-		),
-	}
-	return append(core_tools, team_tools...)
+	teammate_tools := tools.TeammateTools()
+	return append(core_tools, teammate_tools...)
 }

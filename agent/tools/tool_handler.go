@@ -221,3 +221,7 @@ func DispatchTool(name string, input map[string]any) string {
 	}
 	return handler(input)
 }
+
+func RegisterHandler(name string, handler ToolHandler) {
+	TOOL_HANDLERS[name] = handler
+}

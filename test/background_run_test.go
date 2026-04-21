@@ -14,7 +14,7 @@ var initialized = false
 func ensureInit() {
 	if !initialized {
 		fmt.Println("Setting WORKDIR for tests")
-		agent.InitAll()
+		agent.InitForTest()
 		initialized = true
 	}
 }

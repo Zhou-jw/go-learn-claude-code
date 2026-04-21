@@ -56,7 +56,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	console.Info("Agent Loop ready (q/exit to quit)")
-	agent.InitAll()
+	agent.InitAll(&client, cfg.Model.ID)
 	for {
 		console.Cyan("s01 >> ")
 

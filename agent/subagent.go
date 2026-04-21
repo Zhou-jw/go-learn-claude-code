@@ -10,6 +10,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
+
 func RunSubagent(client anthropic.Client, modelID string, prompt string, parentRound int) string {
 	var sub_messages = []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(prompt))}
 	if modelID == "" {
@@ -66,7 +67,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 				}
 
 				if len(output) > 200 {
-					console.Info("%s", output[:200] + "...")
+					console.Info("%s", output[:200]+"...")
 				} else {
 					console.Info("%s", output)
 				}
@@ -92,8 +93,6 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 }
 
 func SubagentTools() []anthropic.ToolUnionParam {
-	subagent_tools := append(tools.CoreTools(), tools.CommonTools()...)
-	subagent_tools = append(subagent_tools, tools.TaskTools()...)
-	
-	return subagent_tools
+	//(TODO): explore mode: read and write otherwise read
+	return tools.CoreTools()
 }

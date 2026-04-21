@@ -211,3 +211,51 @@ func SpawnSubagentTool() []anthropic.ToolUnionParam {
 		),
 	}
 }
+
+func LeadTools() []anthropic.ToolUnionParam {
+	return []anthropic.ToolUnionParam{
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name":   map[string]any{"type": "string"},
+					"role":   map[string]any{"type": "string"},
+					"prompt": map[string]any{"type": "string"}},
+				Required: []string{"path", "old_text", "new_text"},
+			},
+			"spawn_teammate",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+			},
+			"list_teammate",
+		),
+	}
+}
+
+func TeammateTools() []anthropic.ToolUnionParam {
+	return []anthropic.ToolUnionParam{
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"to":      map[string]any{"type": "string"},
+					"content": map[string]any{"type": "string"},
+					"msg_type": map[string]any{"type": "string",
+						"enum": []string{"message", "broadcast", "shutdown_request", "shutdown_response", "plan_approval_response"},
+					},
+				},
+				Required: []string{"to", "content"},
+			},
+			"send_message",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type:       "object",
+				Properties: map[string]any{},
+			},
+			"read_inbox",
+		),
+	}
+}

@@ -4,3 +4,4 @@ glcc
 agent_logs/
 test/test_test.txt
 tasks/
+.*/

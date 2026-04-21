@@ -142,7 +142,11 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 }
 
 func MainAgentTools() []anthropic.ToolUnionParam {
-	mainagent_tools := SubagentTools()
-	mainagent_tools = append(mainagent_tools, tools.SpawnSubagentTool()...)
-	return mainagent_tools
+	main_tools := tools.CoreTools()
+	main_tools = append(main_tools, tools.TaskTools()...)
+	main_tools = append(main_tools, tools.CommonTools()...)
+	main_tools = append(main_tools, tools.SpawnSubagentTool()...)
+	main_tools = append(main_tools, tools.LeadTools()...)
+	main_tools = append(main_tools, tools.TeammateTools()...)
+	return main_tools
 }

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/anthropics/anthropic-sdk-go"
-
 	"glcc/agent/team/bus"
 )
 
@@ -35,7 +33,10 @@ func NewTeammateManager(workdir string) *TeammateManager {
 	return mgr
 }
 
-func (m *TeammateManager) Spawn(name, role, prompt string, client anthropic.Client, modelID string) string {
+func (m *TeammateManager) Spawn(name, role, prompt string, modelID string) string {
+	if modelID == "" {
+		modelID = modelid
+	}
 	member := FindMember(&m.config, name)
 	if member != nil {
 		if member.Status != "idle" && member.Status != "shutdown" {
