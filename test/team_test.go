@@ -69,7 +69,6 @@ func TestNewTeammateManager(t *testing.T) {
 	mgr := team.NewTeammateManager(tmpDir)
 
 	assert.NotNil(t, mgr)
-	assert.NotNil(t, mgr.Bus())
 	assert.Equal(t, 0, len(mgr.MemberNames()))
 }
 

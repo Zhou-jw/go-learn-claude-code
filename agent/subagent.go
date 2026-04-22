@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"glcc/agent/tools"
+	"glcc/agent/utils"
 	"glcc/console"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -53,7 +54,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 		}
 
 		round++
-		SaveMessages(&sub_messages, parentRound+round, "subagent")
+		utils.SaveMessages(&sub_messages, "sub_agent", parentRound+round, "subagent")
 		var toolResults []anthropic.ContentBlockParamUnion
 		for _, block := range resp.Content {
 			if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {

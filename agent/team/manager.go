@@ -17,6 +17,7 @@ type TeammateManager struct {
 	threads map[string]*memberThread
 	mu      sync.RWMutex
 	bus     bus.Bus
+	protocol *Protocol
 }
 
 func NewTeammateManager(workdir string) *TeammateManager {
@@ -28,6 +29,7 @@ func NewTeammateManager(workdir string) *TeammateManager {
 		dir:     teamDir,
 		threads: make(map[string]*memberThread),
 		bus:     bus.NewJSONLBus(workdir),
+		protocol: NewProtocol(),
 	}
 	mgr.config = LoadTeamConfig(teamDir)
 	return mgr
@@ -86,8 +88,28 @@ func (m *TeammateManager) MemberNames() []string {
 	return names
 }
 
-func (m *TeammateManager) Bus() bus.Bus {
-	return m.bus
+func (m *TeammateManager) ReadInbox(from string) []bus.Message {
+	return m.bus.ReadInbox(from)
+}
+
+func (m *TeammateManager) Send(from, to, content, msg_type string, data map[string]any) string {
+	return m.bus.Send(from, to, content, msg_type, data)
+}
+
+func (m *TeammateManager) NewRequest(reqType, from, to string) *Request {
+	return m.protocol.NewRequest(reqType, from, to)
+}
+
+func (m *TeammateManager) GetRequest(request_id string) *Request {
+	req, ok := m.protocol.GetRequest(request_id)
+	if !ok {
+		return nil
+	}
+	return req
+}
+
+func (m *TeammateManager) UpdateRequest(request_id string, approve bool) bool {
+	return m.protocol.Update(request_id, approve)
 }
 
 func (m *TeammateManager) saveConfig() {

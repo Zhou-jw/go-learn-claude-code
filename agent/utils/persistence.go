@@ -1,4 +1,4 @@
-package agent
+package utils
 
 import (
 	"encoding/json"
@@ -16,10 +16,9 @@ var (
 	saveLock     sync.Mutex // 并发安全锁，防止多协程覆盖
 )
 
-func init_persist() {
+func Init_persist() {
 	PERSIST_DIR = fmt.Sprintf("%s/%s", PERSIST_DIR, time.Now().Format("20060102_150405"))
 	PERSIST_FILE = fmt.Sprintf("%s/messages.jsonl", PERSIST_DIR)
-	init_context_compact()
 }
 
 type PersistedMessage struct {
@@ -33,7 +32,7 @@ type PersistedSession struct {
 	Sessions []PersistedMessage `json:"sessions"`
 }
 
-func SaveMessages(messages *[]anthropic.MessageParam, round int, msgType string) error {
+func SaveMessages(messages *[]anthropic.MessageParam, agent_name string, round int, msgType string) error {
 	saveLock.Lock()
 	defer saveLock.Unlock()
 
@@ -49,7 +48,14 @@ func SaveMessages(messages *[]anthropic.MessageParam, round int, msgType string)
 		Messages:  *messages,
 	}
 	
-	file, err := os.OpenFile(PERSIST_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	var file_path string
+	if agent_name == "" {
+		file_path = PERSIST_FILE
+	} else {
+		file_path = fmt.Sprintf("%s/%s_messages.jsonl", PERSIST_DIR, agent_name)
+	}
+	
+	file, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}

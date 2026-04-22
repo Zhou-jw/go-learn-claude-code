@@ -3,6 +3,7 @@ package agent
 import (
 	"glcc/agent/team"
 	"glcc/agent/tools"
+	"glcc/agent/utils"
 	"os"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -15,7 +16,8 @@ var PARENT_TOOLS = MainAgentTools()
 func InitAll(client *anthropic.Client, modelID string) {
 	WORKDIR, _ = os.Getwd()
 
-	init_persist()
+	utils.Init_persist()
+	init_context_compact()
 	tools.Init_tools(WORKDIR)
 	init_prompt()
 	team.Init_teammate_manager(WORKDIR, client, modelID)
@@ -23,7 +25,8 @@ func InitAll(client *anthropic.Client, modelID string) {
 
 func InitForTest() {
 	WORKDIR, _ = os.Getwd()
-	init_persist()
+	utils.Init_persist()
+	init_context_compact()
 	tools.Init_tools(WORKDIR)
 	init_prompt()
 }

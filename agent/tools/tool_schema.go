@@ -212,30 +212,9 @@ func SpawnSubagentTool() []anthropic.ToolUnionParam {
 	}
 }
 
-func LeadTools() []anthropic.ToolUnionParam {
+func TeamCommonTools() []anthropic.ToolUnionParam {
 	return []anthropic.ToolUnionParam{
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-				Properties: map[string]any{
-					"name":   map[string]any{"type": "string"},
-					"role":   map[string]any{"type": "string"},
-					"prompt": map[string]any{"type": "string"}},
-				Required: []string{"path", "old_text", "new_text"},
-			},
-			"spawn_teammate",
-		),
-		anthropic.ToolUnionParamOfTool(
-			anthropic.ToolInputSchemaParam{
-				Type: "object",
-			},
-			"list_teammate",
-		),
-	}
-}
 
-func TeammateTools() []anthropic.ToolUnionParam {
-	return []anthropic.ToolUnionParam{
 		anthropic.ToolUnionParamOfTool(
 			anthropic.ToolInputSchemaParam{
 				Type: "object",
@@ -256,6 +235,87 @@ func TeammateTools() []anthropic.ToolUnionParam {
 				Properties: map[string]any{},
 			},
 			"read_inbox",
+		),
+	}
+}
+
+func LeadTools() []anthropic.ToolUnionParam {
+	return []anthropic.ToolUnionParam{
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name":   map[string]any{"type": "string"},
+					"role":   map[string]any{"type": "string"},
+					"prompt": map[string]any{"type": "string"},
+				},
+				Required: []string{"path", "old_text", "new_text"},
+			},
+			"spawn_teammate",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+			},
+			"list_teammate",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"teammate": map[string]any{"type": "string"},
+				},
+				Required: []string{"teammate"},
+			},
+			"shutdown_request",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"request_id": map[string]any{"type": "string"},
+				},
+				Required: []string{"request_id"},
+			},
+			"shutdown_response",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"request_id": map[string]any{"type": "string"},
+					"approve":    map[string]any{"type": "boolean"},
+				},
+				Required: []string{"request_id", "approve"},
+			},
+			"plan_approval",
+		),
+	}
+}
+
+func TeammateTools() []anthropic.ToolUnionParam {
+	return []anthropic.ToolUnionParam{
+
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"request_id": map[string]any{"type": "string"},
+					"approve":    map[string]any{"type": "boolean"},
+				},
+				Required: []string{"request_id", "approve"},
+			},
+			"shutdown_response",
+		),
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"plan": map[string]any{"type": "string"},
+				},
+				Required: []string{"plan"},
+			},
+			"plan_approval",
 		),
 	}
 }

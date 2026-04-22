@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"glcc/agent/team"
 	"glcc/agent/tools"
+	"glcc/agent/utils"
 	"glcc/console"
 	"strings"
 
@@ -19,7 +20,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 
 	round := 0
 	for {
-		inbox := team.TEAMMATE_MGR.Bus().ReadInbox("lead")
+		inbox := team.TEAMMATE_MGR.ReadInbox("lead")
 		if inbox != nil {
 			if len(inbox) == 0 {
 				continue
@@ -97,7 +98,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		round++
-		SaveMessages(messages, round, "parent")
+		utils.SaveMessages(messages, "", round, "parent")
 
 		var toolResults []anthropic.ContentBlockParamUnion
 		var need_manual_compact = false
@@ -146,7 +147,7 @@ func MainAgentTools() []anthropic.ToolUnionParam {
 	main_tools = append(main_tools, tools.TaskTools()...)
 	main_tools = append(main_tools, tools.CommonTools()...)
 	main_tools = append(main_tools, tools.SpawnSubagentTool()...)
+	main_tools = append(main_tools, tools.TeamCommonTools()...)
 	main_tools = append(main_tools, tools.LeadTools()...)
-	main_tools = append(main_tools, tools.TeammateTools()...)
 	return main_tools
 }

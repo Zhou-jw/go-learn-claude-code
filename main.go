@@ -71,10 +71,11 @@ func main() {
 			break
 		}
 		if query == "/team" {
-			console.Info("%s", team.TEAMMATE_MGR.ListAll())
+			console.Info("%s\n", team.TEAMMATE_MGR.ListAll())
 			continue
 		}
 		if query == "/inbox" {
+			//(TODO): inbox unimplemented
 			continue
 		}
 

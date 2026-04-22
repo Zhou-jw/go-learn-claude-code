@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"glcc/agent/utils"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,8 +31,8 @@ var (
 // }
 
 func init_context_compact() {
-	TOOL_RESULTS_DIR = filepath.Join(PERSIST_DIR, "tool_results")
-	TRANSCRIPT_DIR = filepath.Join(PERSIST_DIR, "transcripts")
+	TOOL_RESULTS_DIR = filepath.Join(utils.PERSIST_DIR, "tool_results")
+	TRANSCRIPT_DIR = filepath.Join(utils.PERSIST_DIR, "transcripts")
 	err := os.MkdirAll(TOOL_RESULTS_DIR, 0755)
 	if err != nil {
 		fmt.Printf("Failed to save: %v\n", err)

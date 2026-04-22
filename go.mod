@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/anthropics/anthropic-sdk-go v1.29.0
 	github.com/fatih/color v1.19.0
+	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )

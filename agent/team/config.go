@@ -42,3 +42,11 @@ func FindMember(cfg *TeamConfig, name string) *Member {
 	}
 	return nil
 }
+
+func shutdown_member(cfg *TeamConfig, name string) {
+	member := FindMember(cfg, name)
+	if member == nil {
+		return
+	}
+	member.Status = "shutdown"
+}
