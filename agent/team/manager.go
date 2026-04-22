@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"glcc/agent/team/bus"
+	"glcc/console"
 )
 
 type TeammateManager struct {
@@ -42,7 +43,7 @@ func (m *TeammateManager) Spawn(name, role, prompt string, modelID string) strin
 	member := FindMember(&m.config, name)
 	if member != nil {
 		if member.Status != "idle" && member.Status != "shutdown" {
-			return fmt.Sprintf("Error: '%s' is currently %s", name, member.Status)
+			return fmt.Sprintf("Error: '%s' is currently %s \n", name, member.Status)
 		}
 		member.Status = "working"
 		member.Role = role
@@ -64,6 +65,7 @@ func (m *TeammateManager) Spawn(name, role, prompt string, modelID string) strin
 	}
 	m.mu.Unlock()
 
+	console.Debug("Spawned '%s' (role: %s)\n", name, role)
 	go m.threads[name].run()
 	return fmt.Sprintf("Spawned '%s' (role: %s)", name, role)
 }
@@ -77,7 +79,7 @@ func (m *TeammateManager) ListAll() string {
 	for _, member := range m.config.Members {
 		lines = append(lines, fmt.Sprintf("  %s (%s): %s", member.Name, member.Role, member.Status))
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(lines, "\n")+"\n"
 }
 
 func (m *TeammateManager) MemberNames() []string {

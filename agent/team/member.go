@@ -33,7 +33,7 @@ func (mt *memberThread) run() {
 	should_shutdown := false
 
 	console.Green("[%s] started", mt.name)
-	for range 50 {
+	for round := range 50 {
 		inbox := mt.mgr.bus.ReadInbox(mt.name)
 		for _, msg := range inbox {
 			msgJSON, _ := json.Marshal(msg)
@@ -42,12 +42,13 @@ func (mt *memberThread) run() {
 			))
 		}
 
-		// console.Info("messages' len: %v", len(messages))
 		if len(inbox) == 0 && len(messages) >= 1 {
+			console.Debug("messages' len: %v", len(messages))
 			time.Sleep(300 * time.Millisecond)
 			continue
 		}
 
+		console.Debug("[%s] call llm ", mt.name)
 		resp, err := mt.client.Messages.New(context.Background(), anthropic.MessageNewParams{
 			Model:     anthropic.Model(mt.modelID),
 			MaxTokens: 8000,
@@ -58,6 +59,8 @@ func (mt *memberThread) run() {
 		if err != nil {
 			break
 		}
+		console.Debug("[%s] AI 调用返回，err=%v", mt.name, err)
+		utils.SaveMessages(&messages, mt.name, round, "teammate")
 
 		// Append assistant message
 		var assistantContent []anthropic.ContentBlockParamUnion
@@ -87,8 +90,8 @@ func (mt *memberThread) run() {
 			}
 		}
 		messages = append(messages, anthropic.NewUserMessage(toolResults...))
-		console.Red("%v", should_shutdown)
-		
+		console.Debug("%v", should_shutdown)
+
 		if should_shutdown {
 			shutdown_member(&mt.mgr.config, mt.name)
 		}
@@ -101,9 +104,9 @@ func (mt *memberThread) run() {
 		}
 		mt.mgr.saveConfig()
 	}
-	
+
 	console.Red("teammate %s break: \n", mt.name)
-	
+
 	utils.SaveMessages(&messages, mt.name, 0, "teammate")
 }
 

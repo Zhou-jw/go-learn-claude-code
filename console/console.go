@@ -7,6 +7,7 @@ import (
 )
 
 // 全局开关（像 DPrintf）
+var debug = true
 var Enable = true
 
 func Info(format string, a ...any) {
@@ -15,6 +16,13 @@ func Info(format string, a ...any) {
 		return
 	}
 	fmt.Printf(format, a...)
+}
+
+func Debug(format string, a ...any) {
+	if !debug{
+		return
+	}
+	Red(format, a...)
 }
 
 func InfoOfLen(n int, format string, a ...any) {

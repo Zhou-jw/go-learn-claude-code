@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"glcc/agent/team"
 	"glcc/agent/tools"
+	"glcc/console"
 )
 
 func init() {
@@ -31,8 +32,7 @@ func handle_spawn_teammate(input map[string]any) string {
 		return "Error: prompt must be a string"
 	}
 
-	team.TEAMMATE_MGR.Spawn(name, role, prompt, "")
-	return fmt.Sprintf("Teammate spawned: %s\n", name)
+	return team.TEAMMATE_MGR.Spawn(name, role, prompt, "")
 }
 
 func handle_list_teammates(input map[string]any) string {
@@ -68,9 +68,11 @@ func handle_shutdown_request(input map[string]any) string {
 	content := "Please shut down gracefully."
 	msg_type := "shutdown_request"
 	req := team.TEAMMATE_MGR.NewRequest(msg_type, "lead", teammate)
+	console.Debug("new shutdown request %s \n", teammate)
 	team.TEAMMATE_MGR.Send("lead", teammate, content, "shutdown_request", map[string]any{
 		"request_id": req.ID,
 	})
+	console.Debug("Send shutdown request %s \n", teammate)
 	return fmt.Sprintf("Shutdown request %s %s\n", req.ID, teammate)
 }
 
