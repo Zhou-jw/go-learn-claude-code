@@ -64,6 +64,8 @@ func (mt *memberThread) run() {
 
 		// Append assistant message
 		var assistantContent []anthropic.ContentBlockParamUnion
+		var toolResults []anthropic.ContentBlockParamUnion
+
 		for _, block := range resp.Content {
 			switch b := block.AsAny().(type) {
 			case anthropic.TextBlock:
@@ -71,30 +73,32 @@ func (mt *memberThread) run() {
 			case anthropic.ToolUseBlock:
 				inputJSON, _ := json.Marshal(b.Input)
 				assistantContent = append(assistantContent, anthropic.NewToolUseBlock(b.ID, json.RawMessage(inputJSON), b.Name))
+
+				// Execute tools
+				output := mt.execTool(b.Name, b.Input, &should_shutdown)
+				console.Info("  [%s] %s: %s\n", mt.name, b.Name, output[:min(120, len(output))])
+				toolResults = append(toolResults, anthropic.NewToolResultBlock(b.ID, output, false))
 			}
 		}
 		messages = append(messages, anthropic.NewAssistantMessage(assistantContent...))
+		
+		utils.SaveMessages(&messages, mt.name, round, "teammate")
+		
+		messages = append(messages, anthropic.NewUserMessage(toolResults...))
+
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
 			console.Red("[%s] break: %s", mt.name, resp.StopReason)
 			break
 		}
 
-		// Execute tools
-		var toolResults []anthropic.ContentBlockParamUnion
-		for _, block := range resp.Content {
-			if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {
-				output := mt.execTool(toolUse.Name, toolUse.Input, &should_shutdown)
-				console.Info("  [%s] %s: %s\n", mt.name, toolUse.Name, output[:min(120, len(output))])
-				toolResults = append(toolResults, anthropic.NewToolResultBlock(toolUse.ID, output, false))
-			}
-		}
-		messages = append(messages, anthropic.NewUserMessage(toolResults...))
-		console.Debug("%v", should_shutdown)
+		console.Debug("[%s] step over stop reason, should_shutdown is %v", mt.name, should_shutdown)
 
 		if should_shutdown {
 			shutdown_member(&mt.mgr.config, mt.name)
 		}
+		utils.SaveMessages(&messages, mt.name, round, "teammate")
+
 	}
 
 	// Set member to idle on exit
@@ -153,12 +157,18 @@ func (mt *memberThread) execTool(toolName string, input json.RawMessage, should_
 	case "shutdown_response":
 		req_id, _ := args["request_id"].(string)
 		approve, _ := args["approve"].(bool)
+		console.Debug("req_id is %s, approve is %v", req_id, approve)
 
-		mt.mgr.UpdateRequest(req_id, approve)
-		mt.mgr.Send(mt.name, "lead", "", "shutdown_response", map[string]any{})
+		ok := mt.mgr.UpdateRequest(req_id, approve)
+		console.Debug("update request is %v", ok)
+		
+		res := mt.mgr.Send(mt.name, "lead", "", "shutdown_response", nil)
+		console.Debug("%s", res)
+		
 		if approve {
 			*should_shutdown = true
 		}
+		return fmt.Sprintf("Shutdown response sent: %s, approve: %v", req_id, approve)
 	}
 
 	return fmt.Sprintf("Unknown tool: %s", toolName)

@@ -7,7 +7,7 @@ import (
 )
 
 // 全局开关（像 DPrintf）
-var debug = true
+var debug = false
 var Enable = true
 
 func Info(format string, a ...any) {

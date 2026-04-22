@@ -74,11 +74,11 @@ func (p *Protocol) NewRequest(reqType, from, to string) *Request {
 	return req
 }
 
-func (p *Protocol) GetRequest(reqID string) (*Request, bool) {
+func (p *Protocol) GetRequest(req_id string) (*Request, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	
-	req, ok := p.requests[reqID]
+	req, ok := p.requests[req_id]
 	return req, ok
 }
 
@@ -86,8 +86,9 @@ func (p *Protocol) Update(req_id string, approve bool) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	req, ok := p.GetRequest(req_id)
+	req, ok := p.requests[req_id]
 	if !ok {
+		// panic("fail to get request %s", req_id)
 		return false
 	}
 
