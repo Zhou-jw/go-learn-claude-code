@@ -7,4 +7,5 @@ func Init_tools(workdir string) {
 	init_todo_manager()
 	init_task_manager(workdir)
 	init_skills(workdir)
+	init_worktree(workdir)
 }

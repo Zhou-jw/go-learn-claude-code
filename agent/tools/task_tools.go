@@ -79,7 +79,7 @@ func new_task_manager(dir string) (*TaskManager, error) {
 
 func init_task_manager(workdir string) {
 	var err error
-	TASKMGR, err = new_task_manager(filepath.Join(workdir, "tasks"))
+	TASKMGR, err = new_task_manager(filepath.Join(workdir, ".task"))
 	if err != nil {
 		console.Red("Fail to init task manager")
 	}
