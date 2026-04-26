@@ -100,6 +100,8 @@ type WorktreeEventBus struct {
 
 ```go
 // 核心 CRUD
+func (m *WorktreeManager) is_git_repo() (*Worktree, error)
+func (m *WorktreeManager) run_git(args []string) (*Worktree, error)
 func (m *WorktreeManager) Create(name, branch string) (*Worktree, error)
 func (m *WorktreeManager) Delete(name string) error
 func (m *WorktreeManager) List() []*Worktree
