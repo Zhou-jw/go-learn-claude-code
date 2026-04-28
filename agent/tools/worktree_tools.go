@@ -146,7 +146,7 @@ func (m *WorktreeManager) load_index_map() error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, m.worktrees)
+	return json.Unmarshal(data, &m.worktrees)
 }
 
 func (m *WorktreeManager) save_index_map() error {
@@ -157,10 +157,11 @@ func (m *WorktreeManager) save_index_map() error {
 	return os.WriteFile(m.index_path, data, 0644)
 }
 
-func (m *WorktreeManager) CreateWorktree(task_id int, name string) error {
+func (m *WorktreeManager) CreateWorktree(task *Task, name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	task_id := task.ID
 	if _, exists := m.worktrees[task_id]; exists {
 		return fmt.Errorf("worktree for task %d already exists", task_id)
 	}
@@ -169,7 +170,7 @@ func (m *WorktreeManager) CreateWorktree(task_id int, name string) error {
 		task_id: task_id,
 		Name:    name,
 		Path:    filepath.Join(m.rootdir, ".worktrees", name),
-		Branch:  "main",
+		Branch:  name,
 		status:  WorktreeStateActive,
 	}
 	m.worktrees[task_id] = wt
