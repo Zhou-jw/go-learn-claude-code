@@ -219,6 +219,18 @@ func (m *WorktreeManager) run_git(args []string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+func (m *WorktreeManager) get_worktree(name string) (*Worktree, bool ) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, wt_ptr := range m.worktrees {
+		if wt_ptr.Name == name {
+			return wt_ptr, true
+		}
+	}
+	return nil, false
+}
+
 func (m *WorktreeManager) CreateWorktree(task_id int, name string, base_ref string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -286,4 +298,77 @@ func (m *WorktreeManager) CreateWorktree(task_id int, name string, base_ref stri
 	})
 
 	return nil
+}
+
+func (m *WorktreeManager) ListAll() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// 没有 worktree 时返回提示（对应 Python if not wts: ...）
+	if len(m.worktrees) == 0 {
+		return "No worktrees in index."
+	}
+
+	var lines []string
+	// 遍历所有 worktree（对应 Python for wt in wts）
+	for _, wt := range m.worktrees {
+		// 拼接 task_id 后缀（对应 Python suffix = ...）
+		var suffix string
+		if wt.TaskID != 0 {
+			suffix = fmt.Sprintf(" task=%d", wt.TaskID)
+		}
+
+		branch := wt.Branch
+		if branch == "" {
+			branch = "-"
+		}
+
+		status := string(wt.Status)
+		if status == "" {
+			status = "unknown"
+		}
+
+		line := fmt.Sprintf("[%s] %s -> %s (%s)%s",
+			status,
+			wt.Name,
+			wt.Path,
+			branch,
+			suffix,
+		)
+		lines = append(lines, line)
+	}
+
+	// 用换行连接返回（对应 Python "\n".join(lines)）
+	return strings.Join(lines, "\n")
+}
+
+func (m *WorktreeManager) Status(name string) string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	wt, ok := m.get_worktree(name)
+	if !ok {
+		return fmt.Sprintf("Error: Unknown worktree '%s'", name)
+	}
+
+	path := wt.Path
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Sprintf("Error: Worktree path missing: %s", path)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "git", "status", "--short", "--branch")
+	cmd.Dir = path
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return err.Error()
+	}
+	
+	text := strings.TrimSpace(string(output))
+	if text =="" {
+		return "Clean Worktree.\n"
+	}
+	return text
 }
