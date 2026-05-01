@@ -24,6 +24,10 @@ type Task struct {
 	IsBackground bool   `json:"is_background"`
 	Command      string `json:"command,omitempty"`
 	Output       string `json:"output,omitempty"`
+
+	// === worktree fields ===
+	Worktree string `json:"worktree"`
+	
 }
 
 type TaskUpdateOptions struct {
@@ -48,6 +52,7 @@ type Worktree struct {
 	Branch    string        `json:"branch"`
 	Status    WorktreeState `json:"status"`
 	CreatedAt time.Time     `json:"created_at"`
+	KeptAt    time.Time     `json:"kept_at"`
 }
 
 type EventType string

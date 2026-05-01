@@ -197,9 +197,7 @@ func (m *WorktreeManager) remove_worktree(task_id int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.worktrees[task_id]; exists {
-		delete(m.worktrees, task_id)
-	}
+	delete(m.worktrees, task_id)
 }
 
 func (m *WorktreeManager) is_worktree_valid(name string) (bool, error, string) {
@@ -405,11 +403,11 @@ func (m *WorktreeManager) Remove(name string, force bool, task_completed bool) s
 	// update task status
 	task_id := wt.TaskID
 	if task_completed {
-		old_task := m.task_provider.Get(task_id) 
+		old_task := m.task_provider.Get(task_id)
 		if old_task == nil {
-			return fmt.Sprintf("Task %s not found", task_id)
+			return fmt.Sprintf("Task %v not found", task_id)
 		}
-		if err := m.task_provider.Update(task_id, TaskUpdateOptions{Status: TaskStateDone}); err != nil {
+		if err := m.task_provider.Update(task_id, TaskStateDone, nil, nil); err != nil {
 			return err.Error()
 		}
 		if err := m.task_provider.UnbindWorktree(task_id); err != nil {
@@ -430,4 +428,25 @@ func (m *WorktreeManager) Remove(name string, force bool, task_completed bool) s
 	})
 
 	return fmt.Sprintf("Worktree %s removed successfully", name)
+}
+
+func (m *WorktreeManager) Keep(name string) string {
+	wt, ok := m.get_worktree(name)
+	if !ok {
+		return "Worktree not found"
+	}
+
+	wt.Status = WorktreeStateKept
+	wt.KeptAt = time.Now()
+	m.save_index_map()
+
+	m.bus.Emit(WorktreeKeepAlive, map[string]any{
+		"task": map[string]any{"id": wt.TaskID},
+		"worktree": map[string]any{
+			"name":   name,
+			"path":   wt.Path,
+			"status": "kept",
+		}})
+
+	return fmt.Sprintf("Worktree %s kept successfully", name)
 }

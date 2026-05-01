@@ -178,5 +178,6 @@ func (mt *memberThread) get_tools() []anthropic.ToolUnionParam {
 	core_tools := tools.CoreTools()
 	teammate_tools := tools.TeamCommonTools()
 	teammate_tools = append(teammate_tools, tools.TeammateTools()...)
+	teammate_tools = append(teammate_tools, tools.WorktreeTools()...)
 	return append(core_tools, teammate_tools...)
 }

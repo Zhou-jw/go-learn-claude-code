@@ -53,7 +53,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		// s08: drain background tasks and append results to messages
-		bg_done_tasks := tools.TASKMGR.Drain()
+		bg_done_tasks := TOOLS.TaskManager.Drain()
 		if len(bg_done_tasks) > 0 {
 			var lines []string
 			for _, bg_task := range bg_done_tasks {
@@ -119,7 +119,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 					need_manual_compact = true
 					console.Info("Compressing...")
 				default:
-					output = tools.DispatchTool(toolUse.Name, input)
+					output = TOOLS.Registry.Dispatch(toolUse.Name, input)
 				}
 
 				console.InfoOfLen(200, "%s", output)
@@ -149,5 +149,6 @@ func MainAgentTools() []anthropic.ToolUnionParam {
 	main_tools = append(main_tools, tools.SpawnSubagentTool()...)
 	main_tools = append(main_tools, tools.TeamCommonTools()...)
 	main_tools = append(main_tools, tools.LeadTools()...)
+	main_tools = append(main_tools, tools.WorktreeTools()...)
 	return main_tools
 }

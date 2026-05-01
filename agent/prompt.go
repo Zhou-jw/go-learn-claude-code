@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"glcc/agent/tools"
 )
 
 // 单例初始化，保证安全
@@ -22,7 +21,7 @@ func init_prompt() {
 		Use background_run for long-running commands.
 		Use load_skill to access specialized knowledge before tackling unfamiliar topics.
 		Skills available:
-		%s`, WORKDIR, tools.SKILL_LOADER.GetDescriptions(),
+		%s`, WORKDIR, TOOLS.SkillLoader.GetDescriptions(),
 	)
 
 	// 子提示词

@@ -53,6 +53,15 @@ func new_task_manager(dir string) (*TaskManager, error) {
 	return tm, nil
 }
 
+func NewTaskManager(workdir string) *TaskManager {
+	tm, err := new_task_manager(filepath.Join(workdir, ".task"))
+	if err != nil {
+		console.Red("Fail to init task manager: %v", err)
+		return nil
+	}
+	return tm
+}
+
 func init_task_manager(workdir string) {
 	var err error
 	TASKMGR, err = new_task_manager(filepath.Join(workdir, ".task"))
@@ -122,7 +131,7 @@ func (m *TaskManager) persist(task *Task) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (m *TaskManager) create_task(subject string, description string) (*Task, error) {
+func (m *TaskManager) CreateTask(subject string, description string) (*Task, error) {
 	id := m.next_id()
 
 	task := &Task{
@@ -144,7 +153,7 @@ func (m *TaskManager) create_task(subject string, description string) (*Task, er
 	return task, nil
 }
 
-func (m *TaskManager) create_bg_task(command string) (*Task, error) {
+func (m *TaskManager) CreateBgTask(command string) (*Task, error) {
 	id := m.next_id()
 
 	task := &Task{
@@ -196,6 +205,9 @@ func (m *TaskManager) Drain() []*Task {
 }
 
 func DrainBackgroundTasks() []*Task {
+	if deprecatedTools != nil && deprecatedTools.TaskManager != nil {
+		return deprecatedTools.TaskManager.Drain()
+	}
 	if TASKMGR == nil {
 		return nil
 	}
@@ -268,17 +280,27 @@ func (m *TaskManager) list_all() string {
 
 	var lines []string
 	for _, id := range ids {
-		line := m.Get(id)
+		line := m.FormatTask(id)
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "")
 }
 
-func (m *TaskManager) Get(taskid int) string {
-	task, ok := m.tasks[taskid]
+// GetTaskByID —— 明确：根据ID获取任务实体（业务逻辑用）
+func (m *TaskManager) Get(taskID int) *Task {
+	task, ok := m.tasks[taskID]
 	if !ok {
+		return nil
+	}
+	return task
+}
+
+func (m *TaskManager) FormatTask(taskID int) string {
+	task := m.Get(taskID)
+	if task == nil {
 		return "Task not found."
 	}
+
 	mark, ok := stateMark[task.State]
 	if !ok {
 		mark = "[?]"
@@ -292,6 +314,33 @@ func (m *TaskManager) Get(taskid int) string {
 		}
 		blocked = fmt.Sprintf(" (blocked by: %s)", strings.Join(strs, ", "))
 	}
-	line := fmt.Sprintf("%s #%d: %s %s\n", mark, taskid, task.Subject, blocked)
-	return line
+
+	return fmt.Sprintf("%s #%d: %s %s", mark, taskID, task.Subject, blocked)
+}
+
+func (m *TaskManager) Exists(taskID int) bool {
+	_, ok := m.tasks[taskID]
+	return ok
+}
+
+func (m *TaskManager) BindWorktree(taskID int, worktreeName string) error {
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+	task.Worktree = worktreeName
+	return m.persist(task)
+}
+
+func (m *TaskManager) UnbindWorktree(taskID int) error {
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+	task.Worktree = ""
+	return m.persist(task)
+}
+
+func (m *TaskManager) ListAll() string {
+	return m.list_all()
 }

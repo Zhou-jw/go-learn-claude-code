@@ -319,3 +319,109 @@ func TeammateTools() []anthropic.ToolUnionParam {
 		),
 	}
 }
+
+func WorktreeTools() []anthropic.ToolUnionParam {
+	return []anthropic.ToolUnionParam{
+
+		// task_bind_worktree
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"task_id":  map[string]any{"type": "integer"},
+					"worktree": map[string]any{"type": "string"},
+					"owner":    map[string]any{"type": "string"},
+				},
+				Required: []string{"task_id", "worktree"},
+			},
+			"task_bind_worktree",
+		),
+
+		// worktree_create
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name":     map[string]any{"type": "string"},
+					"task_id":  map[string]any{"type": "integer"},
+					"base_ref": map[string]any{"type": "string"},
+				},
+				Required: []string{"name"},
+			},
+			"worktree_create",
+		),
+
+		// worktree_list
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type:       "object",
+				Properties: map[string]any{},
+				Required:   []string{},
+			},
+			"worktree_list",
+		),
+
+		// worktree_status
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				Required: []string{"name"},
+			},
+			"worktree_status",
+		),
+
+		// worktree_run
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name":    map[string]any{"type": "string"},
+					"command": map[string]any{"type": "string"},
+				},
+				Required: []string{"name", "command"},
+			},
+			"worktree_run",
+		),
+
+		// worktree_keep
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				Required: []string{"name"},
+			},
+			"worktree_keep",
+		),
+
+		// worktree_remove
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"name":          map[string]any{"type": "string"},
+					"force":         map[string]any{"type": "boolean"},
+					"complete_task": map[string]any{"type": "boolean"},
+				},
+				Required: []string{"name"},
+			},
+			"worktree_remove",
+		),
+
+		// worktree_events
+		anthropic.ToolUnionParamOfTool(
+			anthropic.ToolInputSchemaParam{
+				Type: "object",
+				Properties: map[string]any{
+					"limit": map[string]any{"type": "integer"},
+				},
+				Required: []string{},
+			},
+			"worktree_events",
+		),
+	}
+}

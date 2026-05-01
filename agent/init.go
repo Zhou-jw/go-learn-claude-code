@@ -12,13 +12,14 @@ import (
 var WORKDIR string
 var CHILD_TOOLS = SubagentTools()
 var PARENT_TOOLS = MainAgentTools()
+var TOOLS *tools.Tools
 
 func InitAll(client *anthropic.Client, modelID string) {
 	WORKDIR, _ = os.Getwd()
 
 	utils.Init_persist()
 	init_context_compact()
-	tools.Init_tools(WORKDIR)
+	TOOLS = tools.InitTools(WORKDIR)
 	init_prompt()
 	team.Init_teammate_manager(WORKDIR, client, modelID)
 }
@@ -27,6 +28,10 @@ func InitForTest() {
 	WORKDIR, _ = os.Getwd()
 	utils.Init_persist()
 	init_context_compact()
-	tools.Init_tools(WORKDIR)
+	TOOLS = tools.InitTools(WORKDIR)
 	init_prompt()
+}
+
+func SetTools(t *tools.Tools) {
+	TOOLS = t
 }
