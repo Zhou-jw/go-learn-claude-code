@@ -31,23 +31,6 @@ func init_worktree(workdir string) {
 
 // *********************  Event *******************
 
-type EventType string
-
-const (
-	WorktreeCreateBefore EventType = "worktree.create.before"
-	WorktreeCreateAfter  EventType = "worktree.create.after"
-	WorktreeCreateFailed EventType = "worktree.create.failed"
-	WorktreeRemoveBefore EventType = "worktree.remove.before"
-	WorktreeRemoveAfter  EventType = "worktree.remove.after"
-	WorktreeRemoveFail   EventType = "worktree.remove.fail"
-	WorktreeKeepAlive    EventType = "worktree.keep"
-	TaskCompleted        EventType = "task.completed"
-)
-
-type EventBus interface {
-	Emit(event EventType, data any)
-}
-
 func NewEventBus(dir string) EventBus {
 	return NewJsonlBus(dir)
 }
@@ -65,27 +48,6 @@ func (b *JsonlBus) Emit(event EventType, data any) {
 }
 
 // *********************** Worktree *************************
-type WorktreeState string
-
-const (
-	WorktreeStateActive  WorktreeState = "active"
-	WorktreeStateRemoved WorktreeState = "removed"
-	WorktreeStateKept    WorktreeState = "kept"
-)
-
-type TaskProvider interface {
-	Exists(taskID int) bool
-	BindWorktree(taskID int, worktreeName string) error
-}
-
-type Worktree struct {
-	TaskID    int           `json:"task_id,omitempty"`
-	Name      string        `json:"name"`
-	Path      string        `json:"path"`
-	Branch    string        `json:"branch"`
-	Status    WorktreeState `json:"status"`
-	CreatedAt time.Time     `json:"created_at"`
-}
 
 // WorktreeManager 管理所有 worktree
 type WorktreeManager struct {
@@ -219,7 +181,7 @@ func (m *WorktreeManager) run_git(args []string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func (m *WorktreeManager) get_worktree(name string) (*Worktree, bool ) {
+func (m *WorktreeManager) get_worktree(name string) (*Worktree, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -229,6 +191,30 @@ func (m *WorktreeManager) get_worktree(name string) (*Worktree, bool ) {
 		}
 	}
 	return nil, false
+}
+
+func (m *WorktreeManager) remove_worktree(task_id int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.worktrees[task_id]; exists {
+		delete(m.worktrees, task_id)
+	}
+}
+
+func (m *WorktreeManager) is_worktree_valid(name string) (bool, error, string) {
+
+	wt, ok := m.get_worktree(name)
+	if !ok {
+		return false, fmt.Errorf("Error: Unknown worktree '%s'", name), ""
+	}
+
+	path := wt.Path
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false, fmt.Errorf("Error: Worktree path missing: %s", path), ""
+	}
+
+	return true, nil, path
 }
 
 func (m *WorktreeManager) CreateWorktree(task_id int, name string, base_ref string) error {
@@ -343,32 +329,105 @@ func (m *WorktreeManager) ListAll() string {
 }
 
 func (m *WorktreeManager) Status(name string) string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	wt, ok := m.get_worktree(name)
+	ok, err, path := m.is_worktree_valid(name)
 	if !ok {
-		return fmt.Sprintf("Error: Unknown worktree '%s'", name)
-	}
-
-	path := wt.Path
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Sprintf("Error: Worktree path missing: %s", path)
+		return err.Error()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctx, "git", "status", "--short", "--branch")
 	cmd.Dir = path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return err.Error()
 	}
-	
+
 	text := strings.TrimSpace(string(output))
-	if text =="" {
+	if text == "" {
 		return "Clean Worktree.\n"
 	}
 	return text
+}
+
+func (w *WorktreeManager) RunCmd(name string, command string) string {
+	dangerous := []string{"rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"}
+	for _, d := range dangerous {
+		if strings.Contains(command, d) {
+			return "Error: Dangerous command blocked"
+		}
+	}
+
+	ok, err, path := w.is_worktree_valid(name)
+	if !ok {
+		return err.Error()
+	}
+
+	timeout := 300 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "bash", "-c", command)
+	cmd.Dir = path
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return err.Error()
+	}
+
+	return strings.TrimSpace(string(output))
+}
+
+func (m *WorktreeManager) Remove(name string, force bool, task_completed bool) string {
+	wt, ok := m.get_worktree(name)
+	if !ok {
+		return "Worktree not found"
+	}
+
+	path := wt.Path
+	m.bus.Emit(WorktreeRemoveBefore, map[string]any{
+		"task":     map[string]any{"task_id": wt.TaskID},
+		"worktree": map[string]any{"name": name, "path": path},
+	})
+
+	// remove worktree
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, path)
+	_, err := m.run_git(args)
+	if err != nil {
+		return err.Error()
+	}
+
+	// update task status
+	task_id := wt.TaskID
+	if task_completed {
+		old_task := m.task_provider.Get(task_id) 
+		if old_task == nil {
+			return fmt.Sprintf("Task %s not found", task_id)
+		}
+		if err := m.task_provider.Update(task_id, TaskUpdateOptions{Status: TaskStateDone}); err != nil {
+			return err.Error()
+		}
+		if err := m.task_provider.UnbindWorktree(task_id); err != nil {
+			return err.Error()
+		}
+		m.bus.Emit(TaskCompleted, map[string]any{
+			"task":     map[string]any{"task_id": old_task.ID, "subject": old_task.Subject, "status": TaskStateDone},
+			"worktree": map[string]any{"name": name, "path": path},
+		})
+	}
+
+	// update index
+	m.remove_worktree(task_id)
+	m.save_index_map()
+	m.bus.Emit(WorktreeRemoveAfter, map[string]any{
+		"task":     map[string]any{"id": task_id},
+		"worktree": map[string]any{"name": name, "path": path, "status": "removed"},
+	})
+
+	return fmt.Sprintf("Worktree %s removed successfully", name)
 }

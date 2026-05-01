@@ -179,7 +179,7 @@ func handle_task_update(input map[string]any) string {
 		}
 	}
 
-	err := TASKMGR.update(task_id, status, add_blocked_by, remove_blocked_by)
+	err := TASKMGR.Update(task_id, status, add_blocked_by, remove_blocked_by)
 	if err != nil {
 		return fmt.Sprintf("Error: %s\n", err.Error())
 	}
@@ -196,7 +196,7 @@ func handle_task_get(input map[string]any) string {
 		return "Error: task_id must be a string"
 	}
 	task_id := int(task_id_f64)
-	return TASKMGR.get(task_id)
+	return TASKMGR.Get(task_id)
 }
 
 var TOOL_HANDLERS = map[string]ToolHandler{

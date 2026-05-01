@@ -14,16 +14,6 @@ import (
 
 var TASKMGR *TaskManager
 
-// ==================== TaskState ====================
-type TaskState string
-
-const (
-	TaskStatePending TaskState = "pending"
-	TaskStateRunning TaskState = "running"
-	TaskStateDone    TaskState = "done"
-	TaskStateFailed  TaskState = "failed"
-)
-
 var stateMark = map[TaskState]string{
 	TaskStatePending: "[ ]",
 	TaskStateRunning: "[·]",
@@ -39,20 +29,6 @@ func (s TaskState) is_valid() bool {
 	default:
 		return false
 	}
-}
-
-type Task struct {
-	ID          int       `json:"id"`
-	Subject     string    `json:"subject"`
-	Description string    `json:"description"`
-	State       TaskState `json:"state"`
-	BlockedBy   []int     `json:"blocked_by"`
-	Owner       string    `json:"owner"`
-
-	// === background task fields ===
-	IsBackground bool   `json:"is_background"`
-	Command      string `json:"command,omitempty"`
-	Output       string `json:"output,omitempty"`
 }
 
 type TaskManager struct {
@@ -226,7 +202,7 @@ func DrainBackgroundTasks() []*Task {
 	return TASKMGR.Drain()
 }
 
-func (m *TaskManager) update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
+func (m *TaskManager) Update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return fmt.Errorf("task %d not found", taskid)
@@ -292,13 +268,13 @@ func (m *TaskManager) list_all() string {
 
 	var lines []string
 	for _, id := range ids {
-		line := m.get(id)
+		line := m.Get(id)
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "")
 }
 
-func (m *TaskManager) get(taskid int) string {
+func (m *TaskManager) Get(taskid int) string {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return "Task not found."
