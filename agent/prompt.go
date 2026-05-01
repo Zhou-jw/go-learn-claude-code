@@ -2,18 +2,21 @@ package agent
 
 import (
 	"fmt"
+	"glcc/agent/tools"
 )
 
-// 单例初始化，保证安全
+type PromptConfig struct {
+	SystemPrompt      string
+	SubagentSysPrompt string
+	Workdir           string
+}
+
 var (
-	sysPrompt        string
+	sysPrompt         string
 	subagentSysPrompt string
 )
 
-// 初始化一次：所有全局变量只在这里初始化
-func init_prompt() {
-
-	// 主提示词
+func initPromptWithTools(t *tools.Tools) {
 	sysPrompt = fmt.Sprintf(`You are a coding agent team lead at %s. Use tools to solve tasks.
 		Spawn teammates and communicate via inboxes.
 		Prefer task_create/task_update/task_list for multi-step work. Use TodoWrite for short checklists.
@@ -21,22 +24,19 @@ func init_prompt() {
 		Use background_run for long-running commands.
 		Use load_skill to access specialized knowledge before tackling unfamiliar topics.
 		Skills available:
-		%s`, WORKDIR, TOOLS.SkillLoader.GetDescriptions(),
+		%s`, t.Workdir, t.SkillLoader.GetDescriptions(),
 	)
 
-	// 子提示词
 	subagentSysPrompt = fmt.Sprintf(
 		"You are a coding subagent at %s. Use bash to solve tasks. Complete the given task, then summarize your findings.",
-		WORKDIR,
+		t.Workdir,
 	)
 }
 
-// 获取主提示词（对外公开）
 func Sys_prompt() string {
 	return sysPrompt
 }
 
-// 获取子提示词（如需使用）
 func Subagent_sys_prompt() string {
 	return subagentSysPrompt
 }

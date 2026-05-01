@@ -9,12 +9,20 @@ type Message struct {
 	Extra     map[string]any `json:"extra,omitempty"`
 }
 
-var ValidMsgTypes = map[string]bool{
+const (
+	DefaultImpl = "jsonl"
+)
+
+var validMsgTypes = map[string]bool{
 	"message":                true,
 	"broadcast":              true,
 	"shutdown_request":       true,
 	"shutdown_response":      true,
 	"plan_approval_response": true,
+}
+
+func IsValidMsgType(msgType string) bool {
+	return validMsgTypes[msgType]
 }
 
 // Bus interface - 支持多种实现

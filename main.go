@@ -56,7 +56,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	console.Info("Agent Loop ready (q/exit to quit)")
-	agent.InitAll(&client, cfg.Model.ID)
+	agt := agent.CreateAgent(&client, cfg.Model.ID)
 	for {
 		console.Cyan("s01 >> ")
 
@@ -80,7 +80,7 @@ func main() {
 		}
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))
-		agent.AgentLoop(&history, client, cfg.Model.ID, agent.Sys_prompt())
+		agent.AgentLoop(&history, client, cfg.Model.ID, agent.Sys_prompt(), agt)
 
 		if len(history) > 0 {
 			lastMsg := history[len(history)-1]

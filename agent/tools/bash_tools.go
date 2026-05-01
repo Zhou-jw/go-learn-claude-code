@@ -9,12 +9,22 @@ import (
 	"time"
 )
 
-var DangerousCommands = []string{
-	"rm -rf /",
-	"sudo",
-	"shutdown",
-	"reboot",
-	"> /dev/",
+type BashConfig struct {
+	DangerousCommands []string
+	Workdir           string
+}
+
+func NewBashConfig(workdir string) *BashConfig {
+	return &BashConfig{
+		Workdir: workdir,
+		DangerousCommands: []string{
+			"rm -rf /",
+			"sudo",
+			"shutdown",
+			"reboot",
+			"> /dev/",
+		},
+	}
 }
 
 type ToolError struct {
@@ -39,8 +49,8 @@ func SafePath(p string, workdir string) (string, error) {
 	return absPath, nil
 }
 
-func RunBash(command string, timeout int64, workdir string) (string, error) {
-	for _, d := range DangerousCommands {
+func RunBashWithConfig(cfg *BashConfig, command string, timeout int64) (string, error) {
+	for _, d := range cfg.DangerousCommands {
 		if strings.Contains(command, d) {
 			return "", fmt.Errorf("Error: Dangerous command blocked")
 		}
@@ -50,7 +60,7 @@ func RunBash(command string, timeout int64, workdir string) (string, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
-	cmd.Dir = workdir
+	cmd.Dir = cfg.Workdir
 
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -70,3 +80,7 @@ func RunBash(command string, timeout int64, workdir string) (string, error) {
 	return out, nil
 }
 
+func RunBash(command string, timeout int64, workdir string) (string, error) {
+	cfg := NewBashConfig(workdir)
+	return RunBashWithConfig(cfg, command, timeout)
+}

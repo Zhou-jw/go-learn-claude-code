@@ -33,12 +33,6 @@ type TodoManager struct {
 	todos []TodoItem
 }
 
-var TODOMGR *TodoManager
-
-func init_todo_manager() {
-	TODOMGR = NewTodoManager()
-}
-
 func NewTodoManager() *TodoManager {
 	return &TodoManager{
 		todos: make([]TodoItem, 0),
@@ -60,11 +54,9 @@ func (m *TodoManager) Update(todos []TodoItem) (string, error) {
 		if id == "" {
 			id = fmt.Sprintf("%d", idx+1)
 		}
-		// 文本非空校验
 		if text == "" {
 			return "", fmt.Errorf("item %s: text required", id)
 		}
-		// 枚举合法性校验（只能是 pending/in_progress/completed）
 		if !isValidStatus(status) {
 			return "", fmt.Errorf("item %s: invalid status '%s'", id, status)
 		}
@@ -92,7 +84,7 @@ func (m *TodoManager) Render() string {
 	}
 	var lines []string
 	completed_cnt := 0
-	
+
 	for _, todo := range m.todos {
 		var marker string
 		switch todo.Status {
@@ -104,7 +96,7 @@ func (m *TodoManager) Render() string {
 			marker = "[✓]"
 			completed_cnt++
 		}
-		lines = append(lines, fmt.Sprintf("%s #%s: %s", marker, todo.ID , todo.Text))
+		lines = append(lines, fmt.Sprintf("%s #%s: %s", marker, todo.ID, todo.Text))
 	}
 	return strings.Join(lines, "\n")
 }

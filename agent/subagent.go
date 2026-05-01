@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"glcc/agent/tools"
-	"glcc/agent/utils"
 	"glcc/console"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-
-func RunSubagent(client anthropic.Client, modelID string, prompt string, parentRound int) string {
+func RunSubagent(client anthropic.Client, modelID string, prompt string, parentRound int, agt *Agent) string {
 	var sub_messages = []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(prompt))}
 	if modelID == "" {
 		return "modelID not specified"
@@ -30,7 +28,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 				{Text: Subagent_sys_prompt()},
 			},
 			Messages: sub_messages,
-			Tools:    CHILD_TOOLS,
+			Tools:    SubagentTools(),
 		})
 		if err != nil {
 			output := fmt.Sprintf("API Error: %v\n", err)
@@ -54,7 +52,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 		}
 
 		round++
-		utils.SaveMessages(&sub_messages, "sub_agent", parentRound+round, "subagent")
+		agt.Persist.SaveMessages(&sub_messages, "sub_agent", parentRound+round, "subagent")
 		var toolResults []anthropic.ContentBlockParamUnion
 		for _, block := range resp.Content {
 			if toolUse, ok := block.AsAny().(anthropic.ToolUseBlock); ok {
@@ -62,7 +60,7 @@ func RunSubagent(client anthropic.Client, modelID string, prompt string, parentR
 				json.Unmarshal(toolUse.Input, &input)
 
 				console.Yellow("> %s\n", toolUse.Name)
-				output := TOOLS.Registry.Dispatch(toolUse.Name, input)
+				output := agt.Tools.Registry.Dispatch(toolUse.Name, input)
 				if len(output) > 50000 {
 					output = output[:50000]
 				}

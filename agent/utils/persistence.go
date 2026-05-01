@@ -10,21 +10,10 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-var (
-	PERSIST_DIR  = "agent_logs"
-	PERSIST_FILE = ""
-	saveLock     sync.Mutex // 并发安全锁，防止多协程覆盖
-)
-
-func Init_persist() {
-	PERSIST_DIR = fmt.Sprintf("%s/%s", PERSIST_DIR, time.Now().Format("20060102_150405"))
-	PERSIST_FILE = fmt.Sprintf("%s/messages.jsonl", PERSIST_DIR)
-}
-
 type PersistedMessage struct {
 	Timestamp string                   `json:"timestamp"`
 	Round     int                      `json:"round"`
-	Type      string                   `json:"type"` // "parent" or "subagent"
+	Type      string                   `json:"type"`
 	Messages  []anthropic.MessageParam `json:"messages"`
 }
 
@@ -32,12 +21,40 @@ type PersistedSession struct {
 	Sessions []PersistedMessage `json:"sessions"`
 }
 
-func SaveMessages(messages *[]anthropic.MessageParam, agent_name string, round int, msgType string) error {
-	saveLock.Lock()
-	defer saveLock.Unlock()
+type Persister struct {
+	persistDir  string
+	persistFile string
+	saveLock    *sync.Mutex
+}
 
-	// 创建目录（必须检查错误）
-	if err := os.MkdirAll(PERSIST_DIR, 0755); err != nil {
+func NewPersister(baseDir string) *Persister {
+	timestamp := time.Now().Format("20060102_150405")
+	persistDir := fmt.Sprintf("%s/agent_logs/%s", baseDir, timestamp)
+	persistFile := fmt.Sprintf("%s/messages.jsonl", persistDir)
+	return &Persister{
+		persistDir:  persistDir,
+		persistFile: persistFile,
+		saveLock:    new(sync.Mutex),
+	}
+}
+
+func (p *Persister) Dir() string {
+	return p.persistDir
+}
+
+func (p *Persister) ToolResultsDir() string {
+	return fmt.Sprintf("%s/tool_results", p.persistDir)
+}
+
+func (p *Persister) TranscriptDir() string {
+	return fmt.Sprintf("%s/transcripts", p.persistDir)
+}
+
+func (p *Persister) SaveMessages(messages *[]anthropic.MessageParam, agentName string, round int, msgType string) error {
+	p.saveLock.Lock()
+	defer p.saveLock.Unlock()
+
+	if err := os.MkdirAll(p.persistDir, 0755); err != nil {
 		return err
 	}
 
@@ -47,22 +64,27 @@ func SaveMessages(messages *[]anthropic.MessageParam, agent_name string, round i
 		Type:      msgType,
 		Messages:  *messages,
 	}
-	
-	var file_path string
-	if agent_name == "" {
-		file_path = PERSIST_FILE
+
+	var filePath string
+	if agentName == "" {
+		filePath = p.persistFile
 	} else {
-		file_path = fmt.Sprintf("%s/%s_messages.jsonl", PERSIST_DIR, agent_name)
+		filePath = fmt.Sprintf("%s/%s_messages.jsonl", p.persistDir, agentName)
 	}
-	
-	file, err := os.OpenFile(file_path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	
-	// 格式化写入
+
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(msg)
+}
+
+type PersisterFunc func(p *Persister) error
+
+func Init_persist() *Persister {
+	return NewPersister(".")
 }

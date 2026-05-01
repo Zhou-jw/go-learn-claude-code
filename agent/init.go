@@ -9,29 +9,38 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-var WORKDIR string
-var CHILD_TOOLS = SubagentTools()
-var PARENT_TOOLS = MainAgentTools()
-var TOOLS *tools.Tools
+type Agent struct {
+	Workdir string
+	Tools   *tools.Tools
+	Persist *utils.Persister
+	Compact *CompactConfig
+}
 
-func InitAll(client *anthropic.Client, modelID string) {
-	WORKDIR, _ = os.Getwd()
+func NewAgent(workdir string) *Agent {
+	persister := utils.NewPersister(workdir)
+	compactCfg := InitCompactConfig(persister, workdir)
+	t := tools.NewTools(workdir)
+	RegisterTeammateTools(t)
+	initPromptWithTools(t)
+	return &Agent{
+		Workdir: workdir,
+		Tools:   t,
+		Persist: persister,
+		Compact: compactCfg,
+	}
+}
 
-	utils.Init_persist()
-	init_context_compact()
-	TOOLS = tools.InitTools(WORKDIR)
-	init_prompt()
-	team.Init_teammate_manager(WORKDIR, client, modelID)
+func CreateAgent(client *anthropic.Client, modelID string) *Agent{
+	workdir, _ := os.Getwd()
+	ag := NewAgent(workdir)
+	team.Init_teammate_manager(workdir, client, modelID, ag.Persist)
+	return ag
 }
 
 func InitForTest() {
-	WORKDIR, _ = os.Getwd()
-	utils.Init_persist()
-	init_context_compact()
-	TOOLS = tools.InitTools(WORKDIR)
-	init_prompt()
+	workdir, _ := os.Getwd()
+	NewAgent(workdir)
 }
 
 func SetTools(t *tools.Tools) {
-	TOOLS = t
 }

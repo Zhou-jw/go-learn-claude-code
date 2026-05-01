@@ -12,8 +12,6 @@ import (
 	"sync"
 )
 
-var TASKMGR *TaskManager
-
 var stateMark = map[TaskState]string{
 	TaskStatePending: "[ ]",
 	TaskStateRunning: "[·]",
@@ -21,7 +19,6 @@ var stateMark = map[TaskState]string{
 	TaskStateFailed:  "[✗]",
 }
 
-// 校验状态是否合法（替代原来的枚举检查）
 func (s TaskState) is_valid() bool {
 	switch s {
 	case TaskStatePending, TaskStateRunning, TaskStateDone, TaskStateFailed:
@@ -37,9 +34,10 @@ type TaskManager struct {
 	nextid  int
 	mu      sync.Mutex
 	bg_chan chan *Task
+	bashCfg *BashConfig
 }
 
-func new_task_manager(dir string) (*TaskManager, error) {
+func newTaskManager(dir string, bashCfg *BashConfig) (*TaskManager, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
@@ -47,6 +45,7 @@ func new_task_manager(dir string) (*TaskManager, error) {
 		dir:     dir,
 		tasks:   make(map[int]*Task),
 		bg_chan: make(chan *Task, 20),
+		bashCfg: bashCfg,
 	}
 	tm.load_all_from_disk()
 	tm.nextid = tm.max_id() + 1
@@ -54,20 +53,13 @@ func new_task_manager(dir string) (*TaskManager, error) {
 }
 
 func NewTaskManager(workdir string) *TaskManager {
-	tm, err := new_task_manager(filepath.Join(workdir, ".task"))
+	bashCfg := NewBashConfig(workdir)
+	tm, err := newTaskManager(filepath.Join(workdir, ".task"), bashCfg)
 	if err != nil {
 		console.Red("Fail to init task manager: %v", err)
 		return nil
 	}
 	return tm
-}
-
-func init_task_manager(workdir string) {
-	var err error
-	TASKMGR, err = new_task_manager(filepath.Join(workdir, ".task"))
-	if err != nil {
-		console.Red("Fail to init task manager")
-	}
 }
 
 func (m *TaskManager) load_all_from_disk() error {
@@ -98,7 +90,6 @@ func (m *TaskManager) next_id() int {
 }
 
 func (m *TaskManager) max_id() int {
-
 	max_id := 0
 	for id := range m.tasks {
 		if id > max_id {
@@ -149,7 +140,7 @@ func (m *TaskManager) CreateTask(subject string, description string) (*Task, err
 	m.mu.Lock()
 	m.tasks[task.ID] = task
 	m.mu.Unlock()
-	
+
 	return task, nil
 }
 
@@ -171,13 +162,12 @@ func (m *TaskManager) CreateBgTask(command string) (*Task, error) {
 	m.mu.Lock()
 	m.tasks[task.ID] = task
 	m.mu.Unlock()
-	
 
 	return task, nil
 }
 
-func (m *TaskManager) run_bg_task(task *Task, timeout int64, workdir string) {
-	output, err := RunBash(task.Command, timeout, workdir)
+func (m *TaskManager) RunBgTask(task *Task, timeout int64) {
+	output, err := RunBashWithConfig(m.bashCfg, task.Command, timeout)
 
 	m.mu.Lock()
 	if err != nil {
@@ -204,17 +194,7 @@ func (m *TaskManager) Drain() []*Task {
 	}
 }
 
-func DrainBackgroundTasks() []*Task {
-	if deprecatedTools != nil && deprecatedTools.TaskManager != nil {
-		return deprecatedTools.TaskManager.Drain()
-	}
-	if TASKMGR == nil {
-		return nil
-	}
-	return TASKMGR.Drain()
-}
-
-func (m *TaskManager) Update(taskid int, status TaskState, add_blocked_by []int, remove_blocked_by []int) error {
+func (m *TaskManager) Update(taskid int, status TaskState, add_Blocked_by []int, remove_Blocked_by []int) error {
 	task, ok := m.tasks[taskid]
 	if !ok {
 		return fmt.Errorf("task %d not found", taskid)
@@ -232,10 +212,10 @@ func (m *TaskManager) Update(taskid int, status TaskState, add_blocked_by []int,
 	for _, bid := range task.BlockedBy {
 		newBlock[bid] = true
 	}
-	for _, bid := range add_blocked_by {
+	for _, bid := range add_Blocked_by {
 		newBlock[bid] = true
 	}
-	for _, bid := range remove_blocked_by {
+	for _, bid := range remove_Blocked_by {
 		delete(newBlock, bid)
 	}
 
@@ -250,16 +230,16 @@ func (m *TaskManager) Update(taskid int, status TaskState, add_blocked_by []int,
 func (m *TaskManager) clear_dependency(taskid int) {
 	for _, task := range m.tasks {
 		changed := false
-		new_blocked := make([]int, 0, len(task.BlockedBy))
+		new_Blocked := make([]int, 0, len(task.BlockedBy))
 		for _, id := range task.BlockedBy {
 			if id != taskid {
-				new_blocked = append(new_blocked, id)
+				new_Blocked = append(new_Blocked, id)
 			} else {
 				changed = true
 			}
 		}
 		if changed {
-			task.BlockedBy = new_blocked
+			task.BlockedBy = new_Blocked
 			if err := m.persist(task); err != nil {
 				return
 			}
@@ -286,7 +266,6 @@ func (m *TaskManager) list_all() string {
 	return strings.Join(lines, "")
 }
 
-// GetTaskByID —— 明确：根据ID获取任务实体（业务逻辑用）
 func (m *TaskManager) Get(taskID int) *Task {
 	task, ok := m.tasks[taskID]
 	if !ok {
@@ -306,16 +285,16 @@ func (m *TaskManager) FormatTask(taskID int) string {
 		mark = "[?]"
 	}
 
-	blocked := ""
+	Blocked := ""
 	if len(task.BlockedBy) > 0 {
 		strs := make([]string, len(task.BlockedBy))
 		for i, v := range task.BlockedBy {
 			strs[i] = strconv.Itoa(v)
 		}
-		blocked = fmt.Sprintf(" (blocked by: %s)", strings.Join(strs, ", "))
+		Blocked = fmt.Sprintf(" (Blocked by: %s)", strings.Join(strs, ", "))
 	}
 
-	return fmt.Sprintf("%s #%d: %s %s", mark, taskID, task.Subject, blocked)
+	return fmt.Sprintf("%s #%d: %s %s", mark, taskID, task.Subject, Blocked)
 }
 
 func (m *TaskManager) Exists(taskID int) bool {

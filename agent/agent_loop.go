@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"glcc/agent/team"
 	"glcc/agent/tools"
-	"glcc/agent/utils"
 	"glcc/console"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, modelID string, system string) {
+func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, modelID string, system string, agt *Agent) {
 	if modelID == "" {
 		modelID = string(anthropic.ModelClaudeSonnet4_20250514)
 	}
@@ -25,7 +24,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 			if len(inbox) == 0 {
 				continue
 			}
-			
+
 			buf, err := json.MarshalIndent(inbox, "", "  ")
 			if err != nil {
 				console.Red("json marshal error: %v", err)
@@ -53,7 +52,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		// s08: drain background tasks and append results to messages
-		bg_done_tasks := TOOLS.TaskManager.Drain()
+		bg_done_tasks := agt.Tools.TaskManager.Drain()
 		if len(bg_done_tasks) > 0 {
 			var lines []string
 			for _, bg_task := range bg_done_tasks {
@@ -74,7 +73,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 				{Text: system},
 			},
 			Messages: *messages,
-			Tools:    PARENT_TOOLS,
+			Tools:    MainAgentTools(),
 		})
 		if err != nil {
 			console.Red("API Error: %v\n", err)
@@ -98,7 +97,7 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 		}
 
 		round++
-		utils.SaveMessages(messages, "", round, "parent")
+		agt.Persist.SaveMessages(messages, "", round, "parent")
 
 		var toolResults []anthropic.ContentBlockParamUnion
 		var need_manual_compact = false
@@ -114,12 +113,12 @@ func AgentLoop(messages *[]anthropic.MessageParam, client anthropic.Client, mode
 					prompt := input["prompt"].(string)
 
 					console.InfoOfLen(80, "> task: %s", prompt)
-					output = RunSubagent(client, modelID, prompt, round)
+					output = RunSubagent(client, modelID, prompt, round, agt)
 				case "compact":
 					need_manual_compact = true
 					console.Info("Compressing...")
 				default:
-					output = TOOLS.Registry.Dispatch(toolUse.Name, input)
+					output = agt.Tools.Registry.Dispatch(toolUse.Name, input)
 				}
 
 				console.InfoOfLen(200, "%s", output)

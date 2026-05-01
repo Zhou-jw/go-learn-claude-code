@@ -18,6 +18,7 @@ type memberThread struct {
 	client                      *anthropic.Client
 	modelID                     string
 	mgr                         *TeammateManager
+	persister                   *utils.Persister
 }
 
 func (mt *memberThread) run() {
@@ -60,7 +61,7 @@ func (mt *memberThread) run() {
 			break
 		}
 		console.Debug("[%s] AI 调用返回，err=%v", mt.name, err)
-		utils.SaveMessages(&messages, mt.name, round, "teammate")
+		mt.mgr.persister.SaveMessages(&messages, mt.name, round, "teammate")
 
 		// Append assistant message
 		var assistantContent []anthropic.ContentBlockParamUnion
@@ -81,11 +82,10 @@ func (mt *memberThread) run() {
 			}
 		}
 		messages = append(messages, anthropic.NewAssistantMessage(assistantContent...))
-		
-		utils.SaveMessages(&messages, mt.name, round, "teammate")
-		
-		messages = append(messages, anthropic.NewUserMessage(toolResults...))
 
+		mt.mgr.persister.SaveMessages(&messages, mt.name, round, "teammate")
+
+		messages = append(messages, anthropic.NewUserMessage(toolResults...))
 
 		if resp.StopReason != anthropic.StopReasonToolUse {
 			console.Red("[%s] break: %s", mt.name, resp.StopReason)
@@ -97,7 +97,7 @@ func (mt *memberThread) run() {
 		if should_shutdown {
 			shutdown_member(&mt.mgr.config, mt.name)
 		}
-		utils.SaveMessages(&messages, mt.name, round, "teammate")
+		mt.mgr.persister.SaveMessages(&messages, mt.name, round, "teammate")
 
 	}
 
@@ -111,7 +111,7 @@ func (mt *memberThread) run() {
 
 	console.Red("teammate %s break: \n", mt.name)
 
-	utils.SaveMessages(&messages, mt.name, 0, "teammate")
+	mt.mgr.persister.SaveMessages(&messages, mt.name, 0, "teammate")
 }
 
 func (mt *memberThread) execTool(toolName string, input json.RawMessage, should_shutdown *bool) string {
@@ -161,10 +161,10 @@ func (mt *memberThread) execTool(toolName string, input json.RawMessage, should_
 
 		ok := mt.mgr.UpdateRequest(req_id, approve)
 		console.Debug("update request is %v", ok)
-		
+
 		res := mt.mgr.Send(mt.name, "lead", "", "shutdown_response", nil)
 		console.Debug("%s", res)
-		
+
 		if approve {
 			*should_shutdown = true
 		}

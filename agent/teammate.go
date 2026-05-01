@@ -7,13 +7,13 @@ import (
 	"glcc/console"
 )
 
-func init() {
-	tools.RegisterHandler("spawn_teammate", handle_spawn_teammate)
-	tools.RegisterHandler("list_teammate", handle_list_teammates)
-	tools.RegisterHandler("send_message", handle_send_message)
-	tools.RegisterHandler("shutdown_request", handle_shutdown_request)
-	tools.RegisterHandler("shutdown_response", check_shutdown_status)
-	tools.RegisterHandler("plan_approval", handle_plan_review)
+func RegisterTeammateTools(t *tools.Tools) {
+	t.Registry.RegisterHandler("spawn_teammate", handle_spawn_teammate)
+	t.Registry.RegisterHandler("list_teammate", handle_list_teammates)
+	t.Registry.RegisterHandler("send_message", handle_send_message)
+	t.Registry.RegisterHandler("shutdown_request", handle_shutdown_request)
+	t.Registry.RegisterHandler("shutdown_response", check_shutdown_status)
+	t.Registry.RegisterHandler("plan_approval", handle_plan_review)
 }
 
 func handle_spawn_teammate(input map[string]any) string {

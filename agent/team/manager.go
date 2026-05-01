@@ -8,29 +8,38 @@ import (
 	"sync"
 
 	"glcc/agent/team/bus"
+	"glcc/agent/utils"
 	"glcc/console"
+
+	"github.com/anthropics/anthropic-sdk-go"
 )
 
 type TeammateManager struct {
-	workdir string
-	dir     string
-	config  TeamConfig
-	threads map[string]*memberThread
-	mu      sync.RWMutex
-	bus     bus.Bus
-	protocol *Protocol
+	workdir   string
+	dir       string
+	config    TeamConfig
+	threads   map[string]*memberThread
+	mu        sync.RWMutex
+	bus       bus.Bus
+	protocol  *Protocol
+	persister *utils.Persister
+	client    *anthropic.Client
+	modelID   string
 }
 
-func NewTeammateManager(workdir string) *TeammateManager {
+func NewTeammateManager(workdir string, persister *utils.Persister, client *anthropic.Client, modelID string) *TeammateManager {
 	teamDir := filepath.Join(workdir, ".team")
 	os.MkdirAll(teamDir, 0755)
 
 	mgr := &TeammateManager{
-		workdir: workdir,
-		dir:     teamDir,
-		threads: make(map[string]*memberThread),
-		bus:     bus.NewJSONLBus(workdir),
-		protocol: NewProtocol(),
+		workdir:   workdir,
+		dir:       teamDir,
+		threads:   make(map[string]*memberThread),
+		bus:       bus.NewJSONLBus(workdir),
+		protocol:  NewProtocol(),
+		persister: persister,
+		client:    client,
+		modelID:   modelID,
 	}
 	mgr.config = LoadTeamConfig(teamDir)
 	return mgr
@@ -38,7 +47,7 @@ func NewTeammateManager(workdir string) *TeammateManager {
 
 func (m *TeammateManager) Spawn(name, role, prompt string, modelID string) string {
 	if modelID == "" {
-		modelID = modelid
+		modelID = m.modelID
 	}
 	member := FindMember(&m.config, name)
 	if member != nil {
@@ -55,13 +64,14 @@ func (m *TeammateManager) Spawn(name, role, prompt string, modelID string) strin
 
 	m.mu.Lock()
 	m.threads[name] = &memberThread{
-		name:    name,
-		role:    role,
-		prompt:  prompt,
-		workdir: m.workdir,
-		client:  client,
-		modelID: modelID,
-		mgr:     m,
+		name:      name,
+		role:      role,
+		prompt:    prompt,
+		workdir:   m.workdir,
+		client:    m.client,
+		modelID:   modelID,
+		mgr:       m,
+		persister: m.persister,
 	}
 	m.mu.Unlock()
 
@@ -79,7 +89,7 @@ func (m *TeammateManager) ListAll() string {
 	for _, member := range m.config.Members {
 		lines = append(lines, fmt.Sprintf("  %s (%s): %s", member.Name, member.Role, member.Status))
 	}
-	return strings.Join(lines, "\n")+"\n"
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func (m *TeammateManager) MemberNames() []string {

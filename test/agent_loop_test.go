@@ -53,6 +53,8 @@ func TestAgentLoop(t *testing.T) {
 	system := fmt.Sprintf("You are a coding agent at %s. Use bash to solve tasks. Act, don't explain.", cwd)
 
 	var history []anthropic.MessageParam
+	agt := agent.NewAgent(cwd)
+	agent.RegisterTeammateTools(agt.Tools)
 
 	fmt.Println("Agent Loop ready (q/exit to quit)")
 	for {
@@ -70,7 +72,7 @@ func TestAgentLoop(t *testing.T) {
 
 		history = append(history, anthropic.NewUserMessage(anthropic.NewTextBlock(query)))
 
-		agent.AgentLoop(&history, client, cfg.Model.ID, system)
+		agent.AgentLoop(&history, client, cfg.Model.ID, system, agt)
 
 		if len(history) > 0 {
 			lastMsg := history[len(history)-1]

@@ -16,13 +16,14 @@ type ToolRegistry struct {
 }
 
 func NewToolRegistry(tp TaskProvider, wm *WorktreeManager, workdir string, tm *TodoManager, sl *SkillLoader) *ToolRegistry {
+	cfg := NewBashConfig(workdir)
 	reg := &ToolRegistry{
 		tasks:         tp,
 		worktree:      wm,
 		workdir:       workdir,
 		todoMgr:       tm,
 		skillLoader:   sl,
-		dangerousCmds: DangerousCommands,
+		dangerousCmds: cfg.DangerousCommands,
 		handlers:      make(map[string]ToolHandler),
 	}
 	reg.initDefaultHandlers()
@@ -54,12 +55,12 @@ func (r *ToolRegistry) RegisterHandler(name string, handler ToolHandler) {
 }
 
 type Tools struct {
-	TaskManager    *TaskManager
+	TaskManager     *TaskManager
 	WorktreeManager *WorktreeManager
-	TodoManager    *TodoManager
-	SkillLoader    *SkillLoader
-	Workdir        string
-	Registry       *ToolRegistry
+	TodoManager     *TodoManager
+	SkillLoader     *SkillLoader
+	Workdir         string
+	Registry        *ToolRegistry
 }
 
 func NewTools(workdir string) *Tools {
@@ -111,37 +112,4 @@ func (r *ToolRegistry) getIntArray(m map[string]any, key string) []int {
 		}
 	}
 	return res
-}
-
-// --- 全局兼容层 (已废弃，使用 Tools 结构体) ---
-
-var (
-	deprecatedTools *Tools
-)
-
-func InitTools(workdir string) *Tools {
-	t := NewTools(workdir)
-	deprecatedTools = t
-	return t
-}
-
-func SetGlobalTools(t *Tools) {
-	deprecatedTools = t
-}
-
-func GetGlobalTools() *Tools {
-	return deprecatedTools
-}
-
-func RegisterHandler(name string, handler ToolHandler) {
-	if deprecatedTools != nil {
-		deprecatedTools.Registry.RegisterHandler(name, handler)
-	}
-}
-
-func DispatchTool(name string, input map[string]any) string {
-	if deprecatedTools != nil {
-		return deprecatedTools.Registry.Dispatch(name, input)
-	}
-	return "Error: tools not initialized"
 }

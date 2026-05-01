@@ -13,43 +13,41 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
+type CompactConfig struct {
+	ToolResultsDir string
+	TranscriptDir  string
+	Persist        *utils.Persister
+}
+
 const (
-	PERSIST_THRESHOLD        = 1024 // 输出超过此长度则持久化
-	PREVIEW_CHARS            = 500  // 预览截取长度
-	KEEP_RECENT_TOOL_RESULTS = 3    // 保留最近的工具结果数量
+	PERSIST_THRESHOLD        = 1024
+	PREVIEW_CHARS            = 500
+	KEEP_RECENT_TOOL_RESULTS = 3
 )
 
-var (
-	TOOL_RESULTS_DIR string
-	TRANSCRIPT_DIR   string
-)
+var COMPACT_CONFIG *CompactConfig
+var AGENT_WORKDIR string
 
-// type CompactState struct {
-// 	HasCompacted bool
-// 	LastSummary  string
-// 	RecentFiles  []string
-// }
-
-func init_context_compact() {
-	TOOL_RESULTS_DIR = filepath.Join(utils.PERSIST_DIR, "tool_results")
-	TRANSCRIPT_DIR = filepath.Join(utils.PERSIST_DIR, "transcripts")
-	err := os.MkdirAll(TOOL_RESULTS_DIR, 0755)
-	if err != nil {
-		fmt.Printf("Failed to save: %v\n", err)
+func InitCompactConfig(persister *utils.Persister, workdir string) *CompactConfig {
+	AGENT_WORKDIR = workdir
+	toolResultsDir := persister.ToolResultsDir()
+	transcriptDir := persister.TranscriptDir()
+	os.MkdirAll(toolResultsDir, 0755)
+	os.MkdirAll(transcriptDir, 0755)
+	cfg := &CompactConfig{
+		ToolResultsDir: toolResultsDir,
+		TranscriptDir:  transcriptDir,
+		Persist:        persister,
 	}
-
-	err = os.MkdirAll(TRANSCRIPT_DIR, 0755)
-	if err != nil {
-		fmt.Printf("Failed to save: %v\n", err)
-	}
-
+	COMPACT_CONFIG = cfg
+	return cfg
 }
 
 func Persist_large_output(tool_use_id string, output string) string {
 	if len(output) <= PERSIST_THRESHOLD {
 		return output
 	}
-	stored_path := filepath.Join(TOOL_RESULTS_DIR, tool_use_id+"txt")
+	stored_path := filepath.Join(COMPACT_CONFIG.ToolResultsDir, tool_use_id+"txt")
 
 	if _, err := os.Stat(stored_path); os.IsNotExist(err) {
 		err = os.WriteFile(stored_path, []byte(output), 0644)
@@ -63,7 +61,7 @@ func Persist_large_output(tool_use_id string, output string) string {
 		preview = output[:PREVIEW_CHARS] + "..."
 	}
 
-	rel_path, err := filepath.Rel(WORKDIR, stored_path)
+	rel_path, err := filepath.Rel(AGENT_WORKDIR, stored_path)
 	if err != nil {
 		rel_path = stored_path
 	}
@@ -148,13 +146,12 @@ func getToolResult(block *anthropic.ContentBlockParamUnion) (anthropic.ToolResul
 // -- Layer 2: auto_compact - save transcript, summarize, replace messages --
 
 /*
- * save the full transcript to disk 
+ * save the full transcript to disk
  * return the path to the saved file
  */
 func WriteTranscript(messages *[]anthropic.MessageParam) (string, error) {
-	// Save full transcript to disk
 	ts := strconv.FormatInt(time.Now().Unix(), 10)
-	path := filepath.Join(TRANSCRIPT_DIR, "transcript_"+ts+".jsonl")
+	path := filepath.Join(COMPACT_CONFIG.TranscriptDir, "transcript_"+ts+".jsonl")
 
 	file, err := os.Create(path)
 	if err != nil {
@@ -198,7 +195,7 @@ func SummarizeHistory(messages *[]anthropic.MessageParam, r *anthropic.Client, m
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(sum_prompt)),
 		},
-		Tools: PARENT_TOOLS,
+		Tools: MainAgentTools(),
 	})
 	if err != nil {
 		return &anthropic.Message{}, err
@@ -211,7 +208,7 @@ func SummarizeHistory(messages *[]anthropic.MessageParam, r *anthropic.Client, m
 	return resp, nil
 }
 
-func auto_compact(messages *[]anthropic.MessageParam, r *anthropic.Client, modelID string, /*state *CompactState*/) (*[]anthropic.MessageParam, error) {
+func auto_compact(messages *[]anthropic.MessageParam, r *anthropic.Client, modelID string /*state *CompactState*/) (*[]anthropic.MessageParam, error) {
 	transcriptPath, err := WriteTranscript(messages)
 	if err == nil {
 		fmt.Printf("[transcript saved: %s]\n", transcriptPath)
@@ -245,18 +242,18 @@ func auto_compact(messages *[]anthropic.MessageParam, r *anthropic.Client, model
 	return &[]anthropic.MessageParam{msg}, nil
 }
 
-func estimated_tokens(messages *[]anthropic.MessageParam/* , r *anthropic.Client, modelID string*/) int {
+func estimated_tokens(messages *[]anthropic.MessageParam /* , r *anthropic.Client, modelID string*/) int {
 	// msg_tokens_cnt, err := r.Messages.CountTokens(context.TODO(), anthropic.MessageCountTokensParams{
 	// 	Model:    modelID,
 	// 	Messages: *messages,
 	// })
 	// if err != nil {
-		// panic(err.Error())
+	// panic(err.Error())
 	// }
-	
+
 	conv_bytes, _ := json.Marshal(messages)
 	conversation := string(conv_bytes)
 	msg_tokens_cnt := len(conversation) / 4
-	
+
 	return int(msg_tokens_cnt)
 }

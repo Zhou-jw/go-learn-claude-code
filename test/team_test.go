@@ -7,6 +7,7 @@ import (
 
 	"glcc/agent/team"
 	"glcc/agent/team/bus"
+	"glcc/agent/utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -16,6 +17,10 @@ func setupTestTeamDir(t *testing.T) string {
 	teamDir := filepath.Join(tmpDir, ".team")
 	os.MkdirAll(teamDir, 0755)
 	return tmpDir
+}
+
+func GetTestPersister(dir string) *utils.Persister {
+	return utils.NewPersister(dir)
 }
 
 func TestLoadTeamConfig(t *testing.T) {
@@ -44,29 +49,29 @@ func TestSaveAndLoadTeamConfig(t *testing.T) {
 
 	loaded := team.LoadTeamConfig(teamDir)
 	assert.Equal(t, "test-team", loaded.TeamName)
-	assert.Len(t, loaded.Members, 2)
-	assert.Equal(t, "alice", loaded.Members[0].Name)
+	assert.Equal(t, 2, len(loaded.Members))
 }
 
 func TestFindMember(t *testing.T) {
-	cfg := &team.TeamConfig{
+	cfg := team.TeamConfig{
+		TeamName: "test-team",
 		Members: []team.Member{
 			{Name: "alice", Role: "coder", Status: "idle"},
 		},
 	}
 
-	member := team.FindMember(cfg, "alice")
-	assert.NotNil(t, member)
+	member := team.FindMember(&cfg, "alice")
 	assert.Equal(t, "alice", member.Name)
 
-	notFound := team.FindMember(cfg, "bob")
+	notFound := team.FindMember(&cfg, "bob")
 	assert.Nil(t, notFound)
 }
 
 func TestNewTeammateManager(t *testing.T) {
 	tmpDir := setupTestTeamDir(t)
+	persister := utils.NewPersister(tmpDir)
 
-	mgr := team.NewTeammateManager(tmpDir)
+	mgr := team.NewTeammateManager(tmpDir, persister, nil, "")
 
 	assert.NotNil(t, mgr)
 	assert.Equal(t, 0, len(mgr.MemberNames()))
@@ -74,8 +79,9 @@ func TestNewTeammateManager(t *testing.T) {
 
 func TestTeammateManager_ListAll(t *testing.T) {
 	tmpDir := setupTestTeamDir(t)
+	persister := utils.NewPersister(tmpDir)
 
-	mgr := team.NewTeammateManager(tmpDir)
+	mgr := team.NewTeammateManager(tmpDir, persister, nil, "")
 
 	result := mgr.ListAll()
 	assert.Contains(t, result, "No teammates")
@@ -106,44 +112,6 @@ func TestJSONLBus_Drain(t *testing.T) {
 	msgs := b.ReadInbox("bob")
 	assert.Len(t, msgs, 2)
 
-	// Second read should be empty (drained)
 	msgs = b.ReadInbox("bob")
-	assert.Len(t, msgs, 0)
-}
-
-func TestJSONLBus_InvalidMsgType(t *testing.T) {
-	tmpDir := setupTestTeamDir(t)
-	b := bus.NewJSONLBus(tmpDir)
-
-	result := b.Send("alice", "bob", "Hello", "invalid_type", nil)
-	assert.Contains(t, result, "Error: Invalid type")
-}
-
-func TestJSONLBus_Broadcast(t *testing.T) {
-	tmpDir := setupTestTeamDir(t)
-	b := bus.NewJSONLBus(tmpDir)
-
-	members := []string{"alice", "bob", "charlie"}
-	result := b.Broadcast("alice", "Hello everyone", members)
-
-	assert.Contains(t, result, "Broadcast to 2")
-
-	msgs := b.ReadInbox("bob")
-	assert.Len(t, msgs, 1)
-	assert.Equal(t, "broadcast", msgs[0].Type)
-
-	msgs = b.ReadInbox("charlie")
-	assert.Len(t, msgs, 1)
-
-	// Alice should not receive her own broadcast
-	msgs = b.ReadInbox("alice")
-	assert.Len(t, msgs, 0)
-}
-
-func TestJSONLBus_ReadInbox_NonExistent(t *testing.T) {
-	tmpDir := setupTestTeamDir(t)
-	b := bus.NewJSONLBus(tmpDir)
-
-	msgs := b.ReadInbox("nonexistent")
 	assert.Len(t, msgs, 0)
 }

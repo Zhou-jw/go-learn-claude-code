@@ -25,7 +25,7 @@ func (b *JSONLBus) inboxPath(name string) string {
 }
 
 func (b *JSONLBus) Send(from, to, content, msgType string, extra map[string]any) string {
-	if !ValidMsgTypes[msgType] {
+	if !IsValidMsgType(msgType) {
 		return fmt.Sprintf("Error: Invalid type '%s'", msgType)
 	}
 

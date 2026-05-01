@@ -1,24 +1,15 @@
 package tester
 
 import (
-	"glcc/agent/tools"
-	"os"
 	"strings"
 	"testing"
 )
 
-// 初始化一次，避免重复创建
 func TestMain(m *testing.M) {
-	exitCode := m.Run()
-
-	os.Exit(exitCode)
+	_ = GetTestAgent()
 }
 
-var name = "todo"
-
-// 测试 todo 工具：正常添加任务
 func TestTodoTool_Works(t *testing.T) {
-	// 这就是 AI 传给你的 input 格式
 	input := map[string]any{
 		"todo_items": []any{
 			map[string]any{
@@ -34,11 +25,9 @@ func TestTodoTool_Works(t *testing.T) {
 		},
 	}
 
-	// 调用工具
-	result := tools.DispatchTool(name, input)
+	result := GetTestTools().Registry.Dispatch("todo", input)
 	t.Log(result)
 
-	// 验证没有报错
 	if strings.Contains(result, "Error") {
 		t.Fatalf("todo 工具失败: %s", result)
 	}
@@ -46,7 +35,6 @@ func TestTodoTool_Works(t *testing.T) {
 	t.Log("✅ todo 功能正常！")
 }
 
-// 测试：不能同时有2个 in_progress
 func TestTodoTool_NoTwoInProgress(t *testing.T) {
 	input := map[string]any{
 		"todo_items": []any{
@@ -55,14 +43,13 @@ func TestTodoTool_NoTwoInProgress(t *testing.T) {
 		},
 	}
 
-	result := tools.DispatchTool(name, input)
+	result := GetTestTools().Registry.Dispatch("todo", input)
 	if !strings.Contains(result, "only one task can be in_progress") {
 		t.Fatalf("应该阻止两个进行中任务，但没有: %s", result)
 	}
 	t.Log("✅ 阻止双进行中任务正常！")
 }
 
-// 测试：状态必须是合法值
 func TestTodoTool_InvalidStatus(t *testing.T) {
 	input := map[string]any{
 		"todo_items": []any{
@@ -70,14 +57,13 @@ func TestTodoTool_InvalidStatus(t *testing.T) {
 		},
 	}
 
-	result := tools.DispatchTool(name, input)
+	result := GetTestTools().Registry.Dispatch("todo", input)
 	if !strings.Contains(result, "invalid status") {
 		t.Fatalf("应该拒绝无效状态，但没有: %s", result)
 	}
 	t.Log("✅ 无效状态拦截正常！")
 }
 
-// 测试：text 不能为空
 func TestTodoTool_EmptyText(t *testing.T) {
 	input := map[string]any{
 		"todo_items": []any{
@@ -85,7 +71,7 @@ func TestTodoTool_EmptyText(t *testing.T) {
 		},
 	}
 
-	result := tools.DispatchTool(name, input)
+	result := GetTestTools().Registry.Dispatch("todo", input)
 	if !strings.Contains(result, "text required") {
 		t.Fatalf("应该拦截空文本，但没有: %s", result)
 	}
